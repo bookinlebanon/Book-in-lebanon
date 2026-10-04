@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 // in supabase/schema.sql is what protects the data.
 const SUPABASE_URL =
   import.meta.env.VITE_SUPABASE_URL || 'https://aamkkfymwjedtyhgsmca.supabase.co';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qUUd3GXwGiSkvddI-6TmHw_ZEZ4INy3';
 
 export const isSupabaseConfigured = SUPABASE_ANON_KEY.length > 0;
 
