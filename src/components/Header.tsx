@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { Language, Currency, Category, User } from '../types';
 import { translations } from '../data/translations';
 import { 
@@ -543,6 +544,11 @@ export const Header: React.FC<HeaderProps> = ({
                         </span>
                       </button>
                     )}
+
+                    {/* Appearance */}
+                    <div className="px-4 py-2.5 border-y border-stone-100">
+                      <ThemeSwitcher lang={lang} />
+                    </div>
 
                     {/* Admin Panel Link */}
                     <button

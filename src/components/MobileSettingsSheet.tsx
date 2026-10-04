@@ -1,4 +1,5 @@
 import React from 'react';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { Language, Currency, User } from '../types';
 import { translations, LBP_RATE } from '../data/translations';
 import { 
@@ -244,6 +245,9 @@ export const MobileSettingsSheet: React.FC<MobileSettingsSheetProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Appearance: light / dark / follow the phone */}
+        <ThemeSwitcher lang={lang} />
 
         {/* Language Selection */}
         <div className="space-y-2">
