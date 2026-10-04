@@ -21,10 +21,10 @@ export const initialListings: Listing[] = [
     rating: 4.96,
     reviewsCount: 38,
     images: [
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
-      '/images/lebanon_chalet_interior_1790762581029.jpg',
-      '/images/lebanon_cedars_cabin_1790761973183.jpg',
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_chalet_interior_1790762581029.jpg',
+      'images/lebanon_cedars_cabin_1790761973183.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
     ],
     videos: [
       'https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4',
@@ -87,10 +87,10 @@ export const initialListings: Listing[] = [
     rating: 4.93,
     reviewsCount: 52,
     images: [
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
-      '/images/lebanon_guesthouse_courtyard_1790762593088.jpg',
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_beirut_modern_studio_1790760845048.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_guesthouse_courtyard_1790762593088.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_beirut_modern_studio_1790760845048.jpg',
     ],
     description: {
       ar: 'بيت ضيافة تراثي يعود للقرن التاسع عشر مبني بالحجر الرملي مع باحة أندلسية ساحرة تتسلقها أزهار الجهنمية الوردية. يقع على بعد دقيقتين سيراً من السور الفينيقي وأسواق البترون التاريخية، مع فطور قروي بتروني طازج مشمول.',
@@ -143,9 +143,9 @@ export const initialListings: Listing[] = [
     rating: 4.88,
     reviewsCount: 44,
     images: [
-      '/images/lebanon_beirut_modern_studio_1790760845048.jpg',
-      '/images/lebanon_guesthouse_courtyard_1790762593088.jpg',
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_beirut_modern_studio_1790760845048.jpg',
+      'images/lebanon_guesthouse_courtyard_1790762593088.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
     ],
     description: {
       ar: 'استوديو أنيق ومشرق في قلب الأشرفية الهادئ والراقي. يجمع بين البلاط اللبناني الملون التقليدي والنوافذ القنطرية مع لمسات ديكور عصرية مريحة، إنترنت ألياف ضوئية فائق السرعة، مطبخ مجهز، وبالكون مشمس مطل على حدائق سرسق.',
@@ -198,9 +198,9 @@ export const initialListings: Listing[] = [
     rating: 4.95,
     reviewsCount: 110,
     images: [
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_guesthouse_courtyard_1790762593088.jpg',
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_guesthouse_courtyard_1790762593088.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
     ],
     description: {
       ar: 'أجمل جلسة غروب في لبنان على شرفة حجرية مطلة على ميناء جبيل الفينيقي الأثري. تشكيلة فاخرة من المازة اللبنانية الطازجة، أسماك البحر الأبيض المتوسط، زيت الزيتون البكر والخبز المرقوق الساخن مع موسيقى عود ساحرة.',
@@ -251,9 +251,9 @@ export const initialListings: Listing[] = [
     rating: 4.97,
     reviewsCount: 46,
     images: [
-      '/images/lebanon_cedars_cabin_1790761973183.jpg',
-      '/images/lebanon_chalet_interior_1790762581029.jpg',
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_cedars_cabin_1790761973183.jpg',
+      'images/lebanon_chalet_interior_1790762581029.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
     ],
     description: {
       ar: 'كوخ جبلي فسيح ومبني بخشب الأرز الفاخر على ارتفاع 2000 متر فوق سطح البحر قرب غابة أرز الرب ومتحف جبران خليل جبران. يتميز بمدفأة خشبية طبيعية دافئة، جاكوزي خارجي بإطلالة الضباب الجبلي، ونظام تدفئة وكهرباء 24/24.',
@@ -306,9 +306,9 @@ export const initialListings: Listing[] = [
     rating: 4.95,
     reviewsCount: 33,
     images: [
-      '/images/lebanon_jezzine_pine_villa_1790761985220.jpg',
-      '/images/lebanon_guesthouse_courtyard_1790762593088.jpg',
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_jezzine_pine_villa_1790761985220.jpg',
+      'images/lebanon_guesthouse_courtyard_1790762593088.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
     ],
     description: {
       ar: 'فيلا قروية مستقلة مبنية بالحجر الطبيعي والقرميد الأحمر وسط أكبر غابة صنوبر بري في حوض البحر المتوسط في بكاسين جزين. مسبح خاص مدفأ، تراس مع إطلالة مفتوحة على شلال جزين، فطور قروي مع عسل الصنوبر البلدي.',
@@ -361,9 +361,9 @@ export const initialListings: Listing[] = [
     rating: 4.91,
     reviewsCount: 89,
     images: [
-      '/images/lebanon_beirut_modern_studio_1790760845048.jpg',
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_beirut_modern_studio_1790760845048.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
     ],
     description: {
       ar: 'تجربة ضيافة استثنائية من فئة 5 نجوم بإطلالة مباشرة على كورنيش بيروت والبحر المتوسط. يضم مسبحاً فندقياً راقياً، سبا متكامل، خدمة كونسيرج على مدار الساعة، ومطاعم عالمية راقية.',
@@ -416,10 +416,10 @@ export const initialListings: Listing[] = [
     rating: 4.98,
     reviewsCount: 29,
     images: [
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
-      '/images/lebanon_chalet_interior_1790762581029.jpg',
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_cedars_cabin_1790761973183.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_chalet_interior_1790762581029.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_cedars_cabin_1790761973183.jpg',
     ],
     description: {
       ar: 'فيلا فخمة وعصرية للإيجار في فقرا كلوب الشهير. تحتوي على 4 غرف نوم ماستر، مسبح خاص مدفأ بإطلالة مفتوحة على صخور فقرا الطبيعية، صالون فسيح مع مدفأة رخامية، أمن خاص على مدار الساعة وتدفئة مركزية.',
@@ -472,8 +472,8 @@ export const initialListings: Listing[] = [
     rating: 4.92,
     reviewsCount: 31,
     images: [
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
     ],
     description: {
       ar: 'قصر قروي حجري أصيل وسط سحر دير القمر وقصر بيت الدين التاريخي. قناطر حجرية من القرن الثامن عشر، باحة مرصوفة محاطة بأشجار الرمان والياسمين، فطور جبلي بلدي مع مناقيش صاج وعسل الشوف الطبيعي.',
@@ -526,8 +526,8 @@ export const initialListings: Listing[] = [
     rating: 4.89,
     reviewsCount: 76,
     images: [
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
     ],
     description: {
       ar: 'عروس البقاع زحلة، حيث تجري مياه نهر البردوني الباردة تحت ظلال أشجار الحور والصفصاف. أشهى مازة زحلاوية شهيرة، كبة نية طازجة، مشاوي على الفحم وبوظة زحلاوية عربية بالمستكة.',
@@ -578,8 +578,8 @@ export const initialListings: Listing[] = [
     rating: 4.94,
     reviewsCount: 37,
     images: [
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
     ],
     description: {
       ar: 'شاليه بحري مستقل على أنقى شواطئ البحر الأبيض المتوسط في مدينة صور العريقة. خروج مباشر للرمال الذهبية، تراس غروب خشبي، مطبخ متكامل، كهرباء 24 ساعة، وأجواء استرخاء استثنائية.',
@@ -632,8 +632,8 @@ export const initialListings: Listing[] = [
     rating: 4.90,
     reviewsCount: 28,
     images: [
-      '/images/lebanon_beirut_modern_studio_1790760845048.jpg',
-      '/images/lebanon_jezzine_pine_villa_1790761985220.jpg',
+      'images/lebanon_beirut_modern_studio_1790760845048.jpg',
+      'images/lebanon_jezzine_pine_villa_1790761985220.jpg',
     ],
     description: {
       ar: 'استوديو مجهز بالكامل في بلدة برمانا الجميلة المشهورة بصيفها المنعش ومطاعمها الراقية. شرفة خاصة بإطلالة بانورامية تجمع بين زرقة البحر المتوسط وخضار أشجار الصنوبر، إنترنت سريع للعمل عن بعد، كهرباء 24/24.',
@@ -686,8 +686,8 @@ export const initialListings: Listing[] = [
     rating: 4.93,
     reviewsCount: 22,
     images: [
-      '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
-      '/images/lebanon_cedars_cabin_1790761973183.jpg',
+      'images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      'images/lebanon_cedars_cabin_1790761973183.jpg',
     ],
     description: {
       ar: 'إقامة تراثية في بلدة راشيا الوادي التاريخية تحت ظلال جبل الشيخ (حرمون). أسقف خشبية عتيقة، باحة حجرية مرصوفة، قريبة من كروم عنب البقاع وبحيرة القرعون، مع فطور بلدي طازج بدبس العنب والجبنة البلدية.',
@@ -740,8 +740,8 @@ export const initialListings: Listing[] = [
     rating: 4.87,
     reviewsCount: 65,
     images: [
-      '/images/lebanon_terrace_restaurant_1790760857859.jpg',
-      '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      'images/lebanon_terrace_restaurant_1790760857859.jpg',
+      'images/lebanon_mountain_chalet_1790760821579.jpg',
     ],
     description: {
       ar: 'مطعم مميز بجلسات خشبية عائمة فوق المياه النقية لنهر العاصي قرب نبع عين الزرقاء في الهرمل. تشكيلة من أسماك الترويت النهرية الطازجة المشوية، مازة بقاعية أصيلة، خبز تنور ساخن ومغامرات قوارب الرافتينغ.',

@@ -65,7 +65,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const [hostName, setHostName] = useState('');
   const [hostPhone, setHostPhone] = useState('+961 ');
   const [hostWhatsapp, setHostWhatsapp] = useState('961');
-  const [selectedImage, setSelectedImage] = useState('/images/lebanon_mountain_chalet_1790760821579.jpg');
+  const [selectedImage, setSelectedImage] = useState('images/lebanon_mountain_chalet_1790760821579.jpg');
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -82,27 +82,27 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
   const presetImages = [
     {
-      url: '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      url: 'images/lebanon_mountain_chalet_1790760821579.jpg',
       label: lang === 'ar' ? 'شاليه جبلي فاخر' : lang === 'fr' ? 'Chalet de montagne' : 'Mountain Chalet',
     },
     {
-      url: '/images/lebanon_cedars_cabin_1790761973183.jpg',
+      url: 'images/lebanon_cedars_cabin_1790761973183.jpg',
       label: lang === 'ar' ? 'كوخ أرز الرب' : lang === 'fr' ? 'Cabane des Cèdres' : 'Cedars Alpine Cabin',
     },
     {
-      url: '/images/lebanon_coastal_guesthouse_1790760833819.jpg',
+      url: 'images/lebanon_coastal_guesthouse_1790760833819.jpg',
       label: lang === 'ar' ? 'بيت ضيافة بحري' : lang === 'fr' ? 'Maison d’hôtes côtière' : 'Coastal Guest House',
     },
     {
-      url: '/images/lebanon_jezzine_pine_villa_1790761985220.jpg',
+      url: 'images/lebanon_jezzine_pine_villa_1790761985220.jpg',
       label: lang === 'ar' ? 'فيلا صنوبر جزين' : lang === 'fr' ? 'Villa aux pins' : 'Jezzine Pine Villa',
     },
     {
-      url: '/images/lebanon_beirut_modern_studio_1790760845048.jpg',
+      url: 'images/lebanon_beirut_modern_studio_1790760845048.jpg',
       label: lang === 'ar' ? 'استوديو بيروت' : lang === 'fr' ? 'Studio moderne' : 'Modern Beirut Studio',
     },
     {
-      url: '/images/lebanon_terrace_restaurant_1790760857859.jpg',
+      url: 'images/lebanon_terrace_restaurant_1790760857859.jpg',
       label: lang === 'ar' ? 'مطعم وتراس' : lang === 'fr' ? 'Restaurant terrasse' : 'Terrace Restaurant',
     },
   ];

@@ -46,7 +46,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
   const images = listing.images && listing.images.length > 0 
     ? listing.images 
-    : ['/images/lebanon_mountain_chalet_1790760821579.jpg'];
+    : ['images/lebanon_mountain_chalet_1790760821579.jpg'];
 
   const prevImage = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

@@ -95,7 +95,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   if (mediaItems.length === 0) {
     mediaItems.push({
       type: 'image',
-      url: '/images/lebanon_mountain_chalet_1790760821579.jpg',
+      url: 'images/lebanon_mountain_chalet_1790760821579.jpg',
     });
   }
 

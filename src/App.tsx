@@ -120,7 +120,7 @@ export default function App() {
         const custom: Listing[] = JSON.parse(stored);
         return [...custom, ...initialListings].map(l => ({
           ...l,
-          images: l.images.map(img => img.replace('/src/assets/images/', '/images/'))
+          images: l.images.map(img => img.replace('/src/assets/images/', 'images/'))
         }));
       }
     } catch (e) {
@@ -228,10 +228,10 @@ export default function App() {
         const parsed: ChatConversation[] = JSON.parse(stored);
         return parsed.map((c) => ({
           ...c,
-          listingImage: c.listingImage?.replace('/src/assets/images/', '/images/'),
+          listingImage: c.listingImage?.replace('/src/assets/images/', 'images/'),
           messages: c.messages.map((m) => ({
             ...m,
-            mediaUrl: m.mediaUrl?.replace('/src/assets/images/', '/images/'),
+            mediaUrl: m.mediaUrl?.replace('/src/assets/images/', 'images/'),
           })),
         }));
       }
