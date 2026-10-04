@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Share, X } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { Language } from '../types';
 
 const DISMISS_KEY = 'book_in_lebanon_install_dismissed';
+const APK_URL = 'https://github.com/bookinlebanon/Book-in-lebanon/releases/latest/download/book-in-lebanon.apk';
+
+function isAndroid(): boolean {
+  return /android/i.test(navigator.userAgent);
+}
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -33,7 +39,9 @@ function wasDismissed(): boolean {
 export const InstallAppBanner: React.FC<{ lang: Language }> = ({ lang }) => {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosHelp, setShowIosHelp] = useState(false);
-  const [hidden, setHidden] = useState(() => isStandalone() || wasDismissed());
+  const [hidden, setHidden] = useState(
+    () => Capacitor.isNativePlatform() || isStandalone() || wasDismissed()
+  );
 
   const tr = (ar: string, fr: string, en: string) => (lang === 'ar' ? ar : lang === 'fr' ? fr : en);
 
@@ -51,7 +59,7 @@ export const InstallAppBanner: React.FC<{ lang: Language }> = ({ lang }) => {
     };
   }, []);
 
-  const canInstall = !!installEvent || isIos();
+  const canInstall = !!installEvent || isIos() || isAndroid();
   if (hidden || !canInstall) return null;
 
   const dismiss = () => {
@@ -64,6 +72,10 @@ export const InstallAppBanner: React.FC<{ lang: Language }> = ({ lang }) => {
   };
 
   const install = async () => {
+    if (!installEvent && isAndroid()) {
+      window.location.href = APK_URL;
+      return;
+    }
     if (installEvent) {
       await installEvent.prompt();
       const { outcome } = await installEvent.userChoice;
@@ -98,6 +110,7 @@ export const InstallAppBanner: React.FC<{ lang: Language }> = ({ lang }) => {
             </p>
           )}
           {!showIosHelp && (
+            <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={install}
               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold"
@@ -105,6 +118,12 @@ export const InstallAppBanner: React.FC<{ lang: Language }> = ({ lang }) => {
               <Download className="w-3.5 h-3.5" />
               {tr('تثبيت', 'Installer', 'Install')}
             </button>
+            {isAndroid() && installEvent && (
+              <a href={APK_URL} className="mt-2 text-xs font-bold text-emerald-800 underline">
+                {tr('أو حمّل ملف APK', 'ou télécharger l’APK', 'or download the APK')}
+              </a>
+            )}
+            </div>
           )}
         </div>
         <button

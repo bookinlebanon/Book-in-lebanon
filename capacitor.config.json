@@ -1,0 +1,8 @@
+{
+  "appId": "com.bookinlebanon.app",
+  "appName": "Book in Lebanon",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#FBFBF9"
+  }
+}
