@@ -43,6 +43,7 @@ import { ChatModal } from './components/ChatModal';
 import { PromoteListingModal } from './components/PromoteListingModal';
 import { FeaturedSection } from './components/FeaturedSection';
 import { LebanonMapExplorer } from './components/LebanonMapExplorer';
+import { InstallAppBanner } from './components/InstallAppBanner';
 import { SlidersHorizontal, RotateCcw, Sparkles, Crown, LayoutGrid, Map, Columns } from 'lucide-react';
 
 const STORAGE_FAVORITES_KEY = 'book_in_lebanon_favorites';
@@ -732,6 +733,8 @@ export default function App() {
           {tr('الموقع غير متصل بقاعدة البيانات بعد.', 'Le site n’est pas encore connecté à la base de données.', 'The site is not connected to the database yet.')}
         </div>
       )}
+
+      <InstallAppBanner lang={lang} />
 
       {/* Top Bar Navigation */}
       <Header
