@@ -1,0 +1,6 @@
+{
+  "name": "Book in Lebanon",
+  "description": "منصة حجز وإعلان الشاليهات، بيوت الضيافة، العقارات، الاستوديوهات، الفنادق والمطاعم في لبنان - Book in Lebanon: Chalets, Guest Houses, Studios, Hotels & Restaurants",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
