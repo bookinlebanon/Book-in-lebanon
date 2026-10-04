@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { supabase } from './supabase';
 import {
   AppNotification,
@@ -86,6 +88,35 @@ export async function signUp(input: {
 
 export async function signIn(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+
+export const NATIVE_AUTH_CALLBACK = 'com.bookinlebanon.app://login-callback';
+
+/**
+ * Google sign-in. The website redirects in place; the Android app opens the
+ * system browser (Google refuses embedded web views) and returns via a deep link.
+ */
+export async function signInWithGoogle() {
+  const native = Capacitor.isNativePlatform();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: native ? NATIVE_AUTH_CALLBACK : window.location.origin + window.location.pathname,
+      skipBrowserRedirect: native,
+    },
+  });
+  if (error) throw error;
+  if (native && data.url) await Browser.open({ url: data.url });
+}
+
+/** Completes Google sign-in when the Android app is reopened by the callback link. */
+export async function finishNativeSignIn(url: string) {
+  if (!url.startsWith(NATIVE_AUTH_CALLBACK)) return;
+  await Browser.close().catch(() => {});
+  const code = new URL(url).searchParams.get('code');
+  if (!code) throw new Error(new URL(url).searchParams.get('error_description') || 'Sign-in was cancelled');
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) throw error;
 }
 

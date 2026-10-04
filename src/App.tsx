@@ -19,6 +19,8 @@ import {
 } from './types';
 import * as api from './lib/api';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { translations, LBP_RATE } from './data/translations';
 import { Header } from './components/Header';
 import { HeroSearch } from './components/HeroSearch';
@@ -224,6 +226,20 @@ export default function App() {
 
   useEffect(() => {
     unlockSoundOnFirstInteraction();
+  }, []);
+
+  // Android app: Google sign-in comes back through a deep link.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const sub = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      api
+        .finishNativeSignIn(url)
+        .then(() => setIsAuthOpen(false))
+        .catch(showError);
+    });
+    return () => {
+      sub.then((s) => s.remove());
+    };
   }, []);
 
   const handlePullRefresh = () =>
