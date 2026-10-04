@@ -426,6 +426,29 @@ export default function App() {
     showToast(tr('تم تسجيل الخروج بنجاح', 'Déconnexion réussie', 'Signed out successfully'));
   };
 
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+    const first = window.confirm(
+      tr(
+        'هل تريد حذف حسابك نهائياً؟ ستُحذف إعلاناتك وحجوزاتك ومحادثاتك وصورك ولا يمكن استرجاعها.',
+        'Supprimer définitivement votre compte ? Annonces, réservations, messages et photos seront effacés.',
+        'Permanently delete your account? Your listings, bookings, messages and photos will be erased.'
+      )
+    );
+    if (!first) return;
+    const second = window.confirm(tr('تأكيد أخير: حذف الحساب الآن؟', 'Dernière confirmation : supprimer maintenant ?', 'Final confirmation: delete now?'));
+    if (!second) return;
+    try {
+      await api.deleteMyAccount(currentUser.id);
+      setCurrentUser(null);
+      setIsMobileSettingsOpen(false);
+      await loadListings();
+      showToast(tr('تم حذف حسابك وبياناتك', 'Compte et données supprimés', 'Your account and data were deleted'));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
   // ───── Notifications ─────
 
   const handleMarkAllNotificationsRead = async () => {
@@ -802,6 +825,7 @@ export default function App() {
           setIsAuthOpen(true);
         }}
         onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
         onOpenBecomeHost={() => setIsBecomeHostOpen(true)}
         onOpenAdmin={handleOpenAdmin}
         onOpenNotifications={handleOpenNotifications}
@@ -1297,6 +1321,7 @@ export default function App() {
           setIsAuthOpen(true);
         }}
         onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
         onOpenBecomeHost={() => setIsBecomeHostOpen(true)}
         onOpenAdmin={handleOpenAdmin}
         onOpenNotifications={handleOpenNotifications}

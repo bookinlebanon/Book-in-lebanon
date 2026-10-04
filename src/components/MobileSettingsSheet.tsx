@@ -28,6 +28,7 @@ interface MobileSettingsSheetProps {
   currentUser: User | null;
   onOpenAuth: (mode?: 'signin' | 'signup') => void;
   onLogout: () => void;
+  onDeleteAccount?: () => void;
   onOpenBecomeHost: () => void;
   onOpenAdmin: () => void;
   onOpenNotifications: () => void;
@@ -46,6 +47,7 @@ export const MobileSettingsSheet: React.FC<MobileSettingsSheetProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onDeleteAccount,
   onOpenBecomeHost,
   onOpenAdmin,
   onOpenNotifications,
@@ -319,6 +321,25 @@ export const MobileSettingsSheet: React.FC<MobileSettingsSheetProps> = ({
               );
             })}
           </div>
+        </div>
+
+        {/* Legal links and account deletion */}
+        <div className="flex items-center justify-center gap-3 text-[11px] font-semibold text-stone-500">
+          <a href="./privacy.html" target="_blank" rel="noopener" className="hover:text-stone-800 underline">
+            {lang === 'ar' ? 'سياسة الخصوصية' : lang === 'fr' ? 'Confidentialité' : 'Privacy Policy'}
+          </a>
+          <span aria-hidden="true">·</span>
+          <a href="./terms.html" target="_blank" rel="noopener" className="hover:text-stone-800 underline">
+            {lang === 'ar' ? 'شروط الاستخدام' : lang === 'fr' ? 'Conditions' : 'Terms of Use'}
+          </a>
+          {currentUser && onDeleteAccount && (
+            <>
+              <span aria-hidden="true">·</span>
+              <button onClick={onDeleteAccount} className="text-rose-600 hover:text-rose-700 underline">
+                {lang === 'ar' ? 'حذف حسابي' : lang === 'fr' ? 'Supprimer mon compte' : 'Delete my account'}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Done Button */}

@@ -159,6 +159,14 @@ export const Footer: React.FC<FooterProps> = ({
         {/* Quiet Bottom Line */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-3">
           <span>{t.footer.rights}</span>
+          <span className="flex items-center gap-3">
+            <a href="./privacy.html" className="hover:text-stone-300 underline">
+              {lang === 'ar' ? 'سياسة الخصوصية' : lang === 'fr' ? 'Confidentialité' : 'Privacy Policy'}
+            </a>
+            <a href="./terms.html" className="hover:text-stone-300 underline">
+              {lang === 'ar' ? 'شروط الاستخدام' : lang === 'fr' ? 'Conditions' : 'Terms of Use'}
+            </a>
+          </span>
           <span className="text-stone-400 font-medium">{t.footer.lebanonPride}</span>
         </div>
 

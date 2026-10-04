@@ -120,6 +120,19 @@ export async function finishNativeSignIn(url: string) {
   if (error) throw error;
 }
 
+/** Permanently deletes the signed-in user's photos, account and everything linked to it. */
+export async function deleteMyAccount(userId: string) {
+  const bucket = supabase.storage.from('media');
+  for (const folder of ['listings', 'chat']) {
+    const { data } = await bucket.list(`${userId}/${folder}`, { limit: 1000 });
+    const paths = (data || []).map((f) => `${userId}/${folder}/${f.name}`);
+    if (paths.length) await bucket.remove(paths);
+  }
+  const { error } = await supabase.rpc('delete_my_account');
+  if (error) throw error;
+  await supabase.auth.signOut();
+}
+
 export async function signOut() {
   await supabase.auth.signOut();
 }

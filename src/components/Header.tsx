@@ -43,6 +43,7 @@ interface HeaderProps {
   currentUser: User | null;
   onOpenAuth: (mode?: 'signin' | 'signup') => void;
   onLogout: () => void;
+  onDeleteAccount?: () => void;
   onOpenBecomeHost: () => void;
   onOpenAdmin: () => void;
   onOpenNotifications: () => void;
@@ -69,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onDeleteAccount,
   onOpenBecomeHost,
   onOpenAdmin,
   onOpenNotifications,
@@ -616,6 +618,14 @@ export const Header: React.FC<HeaderProps> = ({
                         <LogOut className="w-4 h-4" />
                         <span>{lang === 'ar' ? 'تسجيل الخروج' : lang === 'fr' ? 'Se déconnecter' : 'Sign Out'}</span>
                       </button>
+                      {onDeleteAccount && (
+                        <button
+                          onClick={onDeleteAccount}
+                          className="w-full px-4 py-1.5 text-[11px] font-semibold text-stone-400 hover:text-rose-600 transition-colors text-left rtl:text-right"
+                        >
+                          {lang === 'ar' ? 'حذف حسابي نهائياً' : lang === 'fr' ? 'Supprimer mon compte' : 'Delete my account'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
