@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { isSoundEnabled, setSoundEnabled, playNotificationSound } from '../utils/notificationSound';
 import { AppNotification, Language } from '../types';
 import { 
   X, 
@@ -10,7 +11,9 @@ import {
   ShieldCheck, 
   Star, 
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 interface NotificationsModalProps {
@@ -33,6 +36,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   onNotificationClick,
 }) => {
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [soundOn, setSoundOn] = useState(isSoundEnabled);
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundEnabled(next);
+    setSoundOn(next);
+    if (next) playNotificationSound();
+  };
 
   if (!isOpen) return null;
 
@@ -103,6 +114,21 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1">
+            <button
+              onClick={toggleSound}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 ${
+                soundOn ? 'text-emerald-800 hover:bg-emerald-50' : 'text-stone-400 hover:bg-stone-100'
+              }`}
+              title={lang === 'ar' ? 'صوت الإشعارات' : lang === 'fr' ? 'Son des notifications' : 'Notification sound'}
+            >
+              {soundOn ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span>
+                {soundOn
+                  ? (lang === 'ar' ? 'الصوت مفعّل' : lang === 'fr' ? 'Son activé' : 'Sound on')
+                  : (lang === 'ar' ? 'الصوت مطفأ' : lang === 'fr' ? 'Son coupé' : 'Sound off')}
+              </span>
+            </button>
+
             {unreadCount > 0 && (
               <button
                 onClick={onMarkAllAsRead}

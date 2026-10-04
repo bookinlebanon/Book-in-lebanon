@@ -44,6 +44,7 @@ import { PromoteListingModal } from './components/PromoteListingModal';
 import { FeaturedSection } from './components/FeaturedSection';
 import { LebanonMapExplorer } from './components/LebanonMapExplorer';
 import { InstallAppBanner } from './components/InstallAppBanner';
+import { playNotificationSound, unlockSoundOnFirstInteraction } from './utils/notificationSound';
 import { SlidersHorizontal, RotateCcw, Sparkles, Crown, LayoutGrid, Map, Columns } from 'lucide-react';
 
 const STORAGE_FAVORITES_KEY = 'book_in_lebanon_favorites';
@@ -218,6 +219,10 @@ export default function App() {
     loadListings();
   }, []);
 
+  useEffect(() => {
+    unlockSoundOnFirstInteraction();
+  }, []);
+
   // Track the signed-in user
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -255,9 +260,14 @@ export default function App() {
 
     const channel = supabase
       .channel(`user-${userId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
-        loadConversations(userId)
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
+        const row = payload.new as { sender_id?: string } | undefined;
+        if (payload.eventType === 'INSERT' && row?.sender_id && row.sender_id !== userId) {
+          playNotificationSound();
+          showToast(tr('💬 رسالة جديدة', '💬 Nouveau message', '💬 New message'));
+        }
+        loadConversations(userId);
+      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversations' }, () =>
         loadConversations(userId)
       )
@@ -268,7 +278,10 @@ export default function App() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        () => loadNotifications()
+        () => {
+          playNotificationSound();
+          loadNotifications();
+        }
       )
       .subscribe();
     return () => {
