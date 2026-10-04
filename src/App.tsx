@@ -44,6 +44,7 @@ import { PromoteListingModal } from './components/PromoteListingModal';
 import { FeaturedSection } from './components/FeaturedSection';
 import { LebanonMapExplorer } from './components/LebanonMapExplorer';
 import { InstallAppBanner } from './components/InstallAppBanner';
+import { ShareAppModal } from './components/ShareAppModal';
 import { playNotificationSound, unlockSoundOnFirstInteraction } from './utils/notificationSound';
 import { SlidersHorizontal, RotateCcw, Sparkles, Crown, LayoutGrid, Map, Columns } from 'lucide-react';
 
@@ -141,6 +142,7 @@ export default function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const [isShareAppOpen, setIsShareAppOpen] = useState(false);
   const [qrListingTarget, setQrListingTarget] = useState<Listing | null>(null);
 
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -763,6 +765,7 @@ export default function App() {
         onOpenQrScanner={() => setIsQrScannerOpen(true)}
         onOpenChat={handleOpenChat}
         onOpenPromote={() => handleOpenPromote()}
+        onOpenShareApp={() => setIsShareAppOpen(true)}
         unreadMessagesCount={totalUnreadMessages}
         bookingsCount={bookings.filter((b) => b.guestId === currentUser?.id && (b.status === 'confirmed' || b.status === 'pending')).length}
         favoritesCount={favorites.length}
@@ -1171,6 +1174,14 @@ export default function App() {
         lang={lang}
         onSelectCategory={(cat) => setFilters((prev) => ({ ...prev, category: cat }))}
         onOpenPostAd={handleOpenPostAd}
+        onOpenShareApp={() => setIsShareAppOpen(true)}
+      />
+
+      <ShareAppModal
+        isOpen={isShareAppOpen}
+        onClose={() => setIsShareAppOpen(false)}
+        lang={lang}
+        onShowToast={showToast}
       />
 
       {/* Mobile Bottom Navigation Bar (Natural Thumb Reach) */}
@@ -1263,6 +1274,7 @@ export default function App() {
         onOpenAdmin={handleOpenAdmin}
         onOpenNotifications={handleOpenNotifications}
         onOpenPromote={() => handleOpenPromote()}
+        onOpenShareApp={() => setIsShareAppOpen(true)}
         unreadNotificationsCount={notifications.filter((n) => !n.read).length}
       />
 

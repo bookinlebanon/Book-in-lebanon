@@ -7,12 +7,14 @@ interface FooterProps {
   lang: Language;
   onSelectCategory: (cat: Category) => void;
   onOpenPostAd: () => void;
+  onOpenShareApp?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   lang,
   onSelectCategory,
   onOpenPostAd,
+  onOpenShareApp,
 }) => {
   const t = translations[lang];
 
@@ -142,6 +144,14 @@ export const Footer: React.FC<FooterProps> = ({
             >
               {t.postAd.button}
             </button>
+            {onOpenShareApp && (
+              <button
+                onClick={onOpenShareApp}
+                className="block px-3.5 py-2 text-xs font-semibold text-white bg-emerald-800 hover:bg-emerald-700 rounded-lg transition-colors shadow-xs"
+              >
+                📲 {lang === 'ar' ? 'شارك التطبيق' : lang === 'fr' ? 'Partager l’app' : 'Share the app'}
+              </button>
+            )}
           </div>
 
         </div>

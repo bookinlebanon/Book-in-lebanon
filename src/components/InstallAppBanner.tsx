@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Download, Share, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Language } from '../types';
+import { APK_URL } from './ShareAppModal';
 
 const DISMISS_KEY = 'book_in_lebanon_install_dismissed';
-const APK_URL = 'https://github.com/bookinlebanon/Book-in-lebanon/releases/latest/download/book-in-lebanon.apk';
 
 function isAndroid(): boolean {
   return /android/i.test(navigator.userAgent);

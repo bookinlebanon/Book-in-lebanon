@@ -20,8 +20,7 @@ import {
   Globe,
   MessageSquare,
   Crown,
-  Check
-} from 'lucide-react';
+  Check, Share2 } from 'lucide-react';
 
 interface HeaderProps {
   lang: Language;
@@ -36,6 +35,7 @@ interface HeaderProps {
   onOpenQrScanner?: () => void;
   onOpenChat?: () => void;
   onOpenPromote?: () => void;
+  onOpenShareApp?: () => void;
   unreadMessagesCount?: number;
   bookingsCount: number;
   favoritesCount: number;
@@ -61,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQrScanner,
   onOpenChat,
   onOpenPromote,
+  onOpenShareApp,
   unreadMessagesCount = 0,
   bookingsCount,
   favoritesCount,
@@ -386,6 +387,16 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
+
+            {onOpenShareApp && (
+              <button
+                onClick={onOpenShareApp}
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-all shadow-xs min-h-[40px] whitespace-nowrap active:scale-95"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{lang === 'ar' ? 'شارك التطبيق' : lang === 'fr' ? 'Partager l’app' : 'Share app'}</span>
+              </button>
+            )}
 
             {/* Promote Listing CTA Button */}
             {onOpenPromote && (

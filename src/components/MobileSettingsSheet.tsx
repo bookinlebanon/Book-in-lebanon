@@ -15,8 +15,7 @@ import {
   ShieldAlert,
   Bell,
   LogOut,
-  Crown
-} from 'lucide-react';
+  Crown, Share2 } from 'lucide-react';
 
 interface MobileSettingsSheetProps {
   isOpen: boolean;
@@ -32,6 +31,7 @@ interface MobileSettingsSheetProps {
   onOpenAdmin: () => void;
   onOpenNotifications: () => void;
   onOpenPromote?: () => void;
+  onOpenShareApp?: () => void;
   unreadNotificationsCount: number;
 }
 
@@ -49,6 +49,7 @@ export const MobileSettingsSheet: React.FC<MobileSettingsSheetProps> = ({
   onOpenAdmin,
   onOpenNotifications,
   onOpenPromote,
+  onOpenShareApp,
   unreadNotificationsCount,
 }) => {
   if (!isOpen) return null;
@@ -147,6 +148,29 @@ export const MobileSettingsSheet: React.FC<MobileSettingsSheetProps> = ({
                 </button>
               </div>
             </div>
+          )}
+
+          {onOpenShareApp && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenShareApp();
+              }}
+              className="w-full p-3 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between transition-all active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-2.5">
+                <img src="./icon-192.png" alt="" className="w-8 h-8 rounded-xl shadow-xs" />
+                <div className="text-left rtl:text-right">
+                  <span className="text-xs font-black text-emerald-950 block">
+                    {lang === 'ar' ? 'شارك التطبيق مع أصدقائك' : lang === 'fr' ? 'Partager l’app avec vos amis' : 'Share the app with friends'}
+                  </span>
+                  <span className="text-[10px] text-emerald-800">
+                    {lang === 'ar' ? 'واتساب، فيسبوك، تيليغرام، رسائل...' : 'WhatsApp, Facebook, Telegram, SMS...'}
+                  </span>
+                </div>
+              </div>
+              <Share2 className="w-4 h-4 text-emerald-800" />
+            </button>
           )}
 
           {/* Quick Promote Banner */}
