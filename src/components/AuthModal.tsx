@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole, Language } from '../types';
+import { signIn, signUp } from '../lib/api';
 import { X, User as UserIcon, Lock, Mail, Phone, ShieldCheck, Sparkles, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface AuthModalProps {
@@ -26,98 +27,62 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [phone, setPhone] = useState('+961 ');
   const [whatsapp, setWhatsapp] = useState('961');
   const [role, setRole] = useState<UserRole>('guest');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [infoText, setInfoText] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  // Preset demo accounts for quick testing
-  const demoAccounts: { label: string; roleDesc: string; user: User; badgeColor: string }[] = [
-    {
-      label: lang === 'ar' ? 'مدير ومسؤول المنصة' : lang === 'fr' ? 'Administrateur de la plateforme' : 'Platform Administrator',
-      roleDesc: lang === 'ar' ? 'صلاحيات كاملة لإدارة الإعلانات، الحجوزات، والمستخدمين' : lang === 'fr' ? 'Gestion complète des annonces, réservations et utilisateurs' : 'Full access to listings, bookings & users',
-      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
-      user: {
-        id: 'user-admin-01',
-        name: lang === 'ar' ? 'زياد حداد' : 'Ziad Haddad',
-        email: 'admin@bookinlebanon.com',
-        phone: '+961 01 980 000',
-        whatsapp: '9611980000',
-        role: 'admin',
-        isVerifiedHost: true,
-        joinedDate: '2025-01-15',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
-      },
-    },
-    {
-      label: lang === 'ar' ? 'مضيف شاليهات وبيوت ضيافة' : lang === 'fr' ? 'Hôte de chalets et maisons d’hôtes' : 'Chalet & Guest House Host',
-      roleDesc: lang === 'ar' ? 'صاحب شاليه في فاريا وبيت ضيافة بالبترون' : lang === 'fr' ? 'Propriétaire à Faraya et Batroun' : 'Owner of chalets in Faraya & Batroun',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      user: {
-        id: 'user-host-01',
-        name: lang === 'ar' ? 'شربل الحايك' : 'Charbel El Hayek',
-        email: 'charbel@lebanonchalets.com',
-        phone: '+961 70 829 110',
-        whatsapp: '96170829110',
-        role: 'host',
-        isVerifiedHost: true,
-        joinedDate: '2025-06-10',
-        listingsCount: 2,
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
-      },
-    },
-    {
-      label: lang === 'ar' ? 'مسافر وباحث عن إقامة' : lang === 'fr' ? 'Voyageur & Visiteur' : 'Traveler & Guest',
-      roleDesc: lang === 'ar' ? 'حجز مباشر واستكشاف الشاليهات والمطاعم' : lang === 'fr' ? 'Réservations directes et découverte du Liban' : 'Direct booking & exploring Lebanon stays',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      user: {
-        id: 'user-guest-01',
-        name: lang === 'ar' ? 'سارة كرم' : 'Sarah Karam',
-        email: 'sarah.karam@gmail.com',
-        phone: '+961 71 450 882',
-        whatsapp: '96171450882',
-        role: 'guest',
-        joinedDate: '2026-02-20',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
-      },
-    },
-  ];
+  const tr = (ar: string, fr: string, en: string) => (lang === 'ar' ? ar : lang === 'fr' ? fr : en);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'signin') {
-      const loggedUser: User = {
-        id: `user-${Date.now()}`,
-        name: email.split('@')[0] || (lang === 'ar' ? 'مستخدم المنصة' : lang === 'fr' ? 'Utilisateur' : 'Lebanon User'),
-        email,
-        phone: '+961 70 000 000',
-        whatsapp: '96170000000',
-        role: email.includes('admin') ? 'admin' : email.includes('host') ? 'host' : 'guest',
-        isVerifiedHost: email.includes('host') || email.includes('admin'),
-        joinedDate: new Date().toISOString().split('T')[0],
-      };
-      onLogin(loggedUser);
-      onShowToast(lang === 'ar' ? `مرحباً بك ${loggedUser.name}! تم تسجيل الدخول بنجاح` : lang === 'fr' ? `Bienvenue ${loggedUser.name} !` : `Welcome back ${loggedUser.name}!`);
-      onClose();
-    } else {
-      const newUser: User = {
-        id: `user-${Date.now()}`,
-        name: name || (lang === 'ar' ? 'مستخدم جديد' : lang === 'fr' ? 'Nouvel utilisateur' : 'New User'),
-        email,
-        phone,
-        whatsapp,
-        role,
-        isVerifiedHost: role === 'host',
-        joinedDate: new Date().toISOString().split('T')[0],
-      };
-      onLogin(newUser);
-      onShowToast(lang === 'ar' ? 'تم إنشاء حسابك الجديد بنجاح!' : lang === 'fr' ? 'Votre compte a été créé avec succès !' : 'Your account has been created successfully!');
-      onClose();
+    setErrorText(null);
+    setIsSubmitting(true);
+    try {
+      if (mode === 'signin') {
+        await signIn(email.trim(), password);
+        onShowToast(tr('مرحباً بك! تم تسجيل الدخول بنجاح', 'Bienvenue ! Connexion réussie', 'Welcome back! Signed in'));
+        onClose();
+      } else {
+        const { needsEmailConfirmation } = await signUp({
+          email: email.trim(),
+          password,
+          name: name.trim(),
+          phone: phone.trim(),
+          whatsapp: whatsapp.replace(/[^0-9]/g, ''),
+          role,
+        });
+        if (needsEmailConfirmation) {
+          setInfoText(
+            tr(
+              'أرسلنا رسالة تأكيد إلى بريدك الإلكتروني. افتحها واضغط على الرابط، ثم سجّل الدخول.',
+              'Nous avons envoyé un e-mail de confirmation. Cliquez sur le lien puis connectez-vous.',
+              'We sent a confirmation email. Click the link in it, then sign in.'
+            )
+          );
+          setMode('signin');
+        } else {
+          onShowToast(tr('تم إنشاء حسابك الجديد بنجاح!', 'Votre compte a été créé avec succès !', 'Your account has been created!'));
+          onClose();
+        }
+      }
+    } catch (err) {
+      const msg = (err as { message?: string })?.message || '';
+      setErrorText(
+        msg.includes('Invalid login credentials')
+          ? tr('البريد الإلكتروني أو كلمة المرور غير صحيحة', 'E-mail ou mot de passe incorrect', 'Wrong email or password')
+          : msg.includes('Email not confirmed')
+          ? tr('يرجى تأكيد بريدك الإلكتروني أولاً من الرسالة التي أرسلناها', 'Veuillez d’abord confirmer votre e-mail', 'Please confirm your email first')
+          : msg.includes('already registered')
+          ? tr('هذا البريد مسجّل مسبقاً، سجّل الدخول بدلاً من ذلك', 'Cet e-mail est déjà inscrit', 'This email is already registered, sign in instead')
+          : msg.includes('Password should be')
+          ? tr('كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'Le mot de passe doit contenir au moins 6 caractères', 'Password must be at least 6 characters')
+          : msg || tr('حدث خطأ، حاول مجدداً', 'Une erreur est survenue', 'Something went wrong')
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleSelectDemo = (u: User) => {
-    onLogin(u);
-    onShowToast(lang === 'ar' ? `تم تسجيل الدخول بحساب: ${u.name}` : lang === 'fr' ? `Connecté en tant que : ${u.name}` : `Logged in as: ${u.name}`);
-    onClose();
   };
 
   return (
@@ -309,6 +274,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="password"
                   required
+                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -317,60 +283,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
+            {errorText && (
+              <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl p-2.5">{errorText}</p>
+            )}
+            {infoText && (
+              <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5">{infoText}</p>
+            )}
+
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-sm active:scale-98"
+              disabled={isSubmitting}
+              className="w-full py-3 disabled:opacity-60 bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-sm active:scale-98"
             >
-              {mode === 'signin'
+              {isSubmitting
+                ? tr('جارٍ الإرسال...', 'Envoi...', 'Please wait...')
+                : mode === 'signin'
                 ? (lang === 'ar' ? 'دخول فوري' : lang === 'fr' ? 'Se connecter' : 'Sign In')
                 : (lang === 'ar' ? 'إتمام إنشاء الحساب' : lang === 'fr' ? 'Finaliser l’inscription' : 'Create Account')}
             </button>
           </form>
 
-          {/* Quick Demo Accounts Banner */}
-          <div className="pt-3 border-t border-stone-100 space-y-2">
-            <span className="text-[11px] font-bold text-stone-400 uppercase tracking-wider block flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>{lang === 'ar' ? 'حسابات تجريبية سريعة' : lang === 'fr' ? 'Comptes démo instantanés' : 'Quick Demo Accounts'}</span>
-            </span>
-
-            <div className="space-y-1.5">
-              {demoAccounts.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleSelectDemo(item.user)}
-                  className="w-full p-2.5 rounded-xl border border-stone-200 hover:border-emerald-600 bg-stone-50/70 hover:bg-emerald-50/40 text-left rtl:text-right transition-all flex items-center justify-between group active:scale-98"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <img 
-                      src={item.user.avatar} 
-                      alt={item.user.name} 
-                      className="w-8 h-8 rounded-full object-cover shrink-0 border border-stone-200" 
-                    />
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-stone-900 truncate">
-                          {item.user.name}
-                        </span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded border ${item.badgeColor}`}>
-                          {lang === 'ar' 
-                            ? (item.user.role === 'admin' ? 'مشرف' : item.user.role === 'host' ? 'مضيف' : 'ضيف')
-                            : lang === 'fr'
-                            ? (item.user.role === 'admin' ? 'Admin' : item.user.role === 'host' ? 'Hôte' : 'Voyageur')
-                            : item.user.role.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-500 truncate">{item.roleDesc}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-800 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-                    {lang === 'ar' ? 'دخول' : lang === 'fr' ? 'Choisir' : 'Use'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

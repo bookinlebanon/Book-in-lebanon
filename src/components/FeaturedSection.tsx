@@ -150,7 +150,7 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
                 {/* Rating badge */}
                 <div className="absolute top-2 right-2 rtl:right-auto rtl:left-2 z-10 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold flex items-center gap-0.5">
                   <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                  <span>{listing.rating.toFixed(2)}</span>
+                  <span>{listing.reviewsCount > 0 ? listing.rating.toFixed(2) : (lang === 'ar' ? 'جديد' : lang === 'fr' ? 'Nouveau' : 'New')}</span>
                 </div>
               </div>
 

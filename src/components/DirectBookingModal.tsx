@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Listing, Language, Booking, PaymentMethod } from '../types';
+import { Listing, Language, Booking, PaymentMethod, User } from '../types';
 import { translations, LBP_RATE } from '../data/translations';
 import { 
   X, 
@@ -23,15 +23,15 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { BookingCalendarPicker } from './BookingCalendarPicker';
-import { generatePaymentQrDataUrl } from '../utils/qrUtils';
 
 interface DirectBookingModalProps {
   listing: Listing | null;
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
-  onConfirmBooking: (booking: Booking) => void;
+  onConfirmBooking: (booking: Booking) => Promise<Booking | null>;
   existingBookings?: Booking[];
+  currentUser?: User | null;
 }
 
 export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
@@ -41,6 +41,7 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
   lang,
   onConfirmBooking,
   existingBookings = [],
+  currentUser,
 }) => {
   // Dates defaults: today + tomorrow
   const todayStr = new Date().toISOString().split('T')[0];
@@ -58,19 +59,12 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
   const [notes, setNotes] = useState('');
 
   // Payment Options State
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cards');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash_on_arrival');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Cards Form State
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
 
   // Whish Pay & OMT Pay State
-  const [whishPhone, setWhishPhone] = useState('+961 ');
-  const [omtPhone, setOmtPhone] = useState('+961 ');
-  const [whishQr, setWhishQr] = useState<string>('');
-  const [omtQr, setOmtQr] = useState<string>('');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Dynamic reference code for payment
@@ -78,6 +72,14 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
 
   // Confirmation view state
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
+
+  // Prefill guest details from the signed-in account
+  useEffect(() => {
+    if (!isOpen || !currentUser) return;
+    setFullName((prev) => prev || currentUser.name);
+    setEmail((prev) => prev || currentUser.email);
+    setPhone((prev) => (prev.trim() && prev.trim() !== '+961' ? prev : currentUser.phone || prev));
+  }, [isOpen, currentUser]);
 
   const t = translations[lang];
   const isRestaurant = listing?.category === 'restaurant';
@@ -104,28 +106,6 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
             }
           }
         });
-    }
-
-    // If listing has no reserved dates set, generate realistic reserved days (e.g. popular upcoming weekend dates)
-    if (datesSet.size === 0) {
-      const today = new Date();
-      const day = today.getDay();
-      const diffToFri = (5 - day + 7) % 7 || 7;
-      const fri = new Date(today);
-      fri.setDate(today.getDate() + diffToFri);
-      const sat = new Date(fri);
-      sat.setDate(fri.getDate() + 1);
-      
-      datesSet.add(fri.toISOString().split('T')[0]);
-      datesSet.add(sat.toISOString().split('T')[0]);
-
-      // And 2 weeks later
-      const fri2 = new Date(fri);
-      fri2.setDate(fri.getDate() + 14);
-      const sat2 = new Date(sat);
-      sat2.setDate(sat.getDate() + 14);
-      datesSet.add(fri2.toISOString().split('T')[0]);
-      datesSet.add(sat2.toISOString().split('T')[0]);
     }
 
     return Array.from(datesSet);
@@ -190,13 +170,6 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
   const totalUSD = subtotalUSD + serviceFeeUSD;
   const totalLBP = totalUSD * LBP_RATE;
 
-  // Generate QR codes for Whish and OMT when payment method is selected
-  useEffect(() => {
-    if (isOpen && totalUSD > 0) {
-      generatePaymentQrDataUrl('whish', totalUSD, `WHISH-${txnRefCode}`).then(setWhishQr);
-      generatePaymentQrDataUrl('omt', totalUSD, `OMT-${txnRefCode}`).then(setOmtQr);
-    }
-  }, [isOpen, totalUSD, txnRefCode]);
 
   if (!isOpen || !listing) return null;
 
@@ -206,9 +179,9 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
     setTimeout(() => setCopiedCode(null), 2500);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !phone.trim() || !email.trim()) return;
+    if (!fullName.trim() || !phone.trim() || !email.trim() || isSubmitting) return;
 
     let paymentRef = txnRefCode;
     if (paymentMethod === 'whish_pay') paymentRef = `WHISH-${txnRefCode}`;
@@ -218,6 +191,7 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
 
     const newBooking: Booking = {
       id: txnRefCode,
+      reference: txnRefCode,
       listingId: listing.id,
       listingTitle: localizedTitle,
       listingImage: listing.images[0] || '',
@@ -237,15 +211,17 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
       totalUSD,
       totalLBP,
       paymentMethod,
-      paymentStatus: paymentMethod === 'cash_on_arrival' ? 'cash' : 'paid',
+      paymentStatus: paymentMethod === 'cash_on_arrival' ? 'cash' : 'pending',
       paymentReference: paymentRef,
       notes: notes.trim(),
-      status: 'confirmed',
+      status: 'pending',
       createdAt: new Date().toISOString(),
     };
 
-    onConfirmBooking(newBooking);
-    setConfirmedBooking(newBooking);
+    setIsSubmitting(true);
+    const saved = await onConfirmBooking(newBooking);
+    setIsSubmitting(false);
+    if (saved) setConfirmedBooking(saved);
   };
 
   const getPaymentMethodLabel = (method: PaymentMethod) => {
@@ -348,10 +324,10 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
                 <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
               </div>
               <h3 className="text-xl font-extrabold text-stone-900">
-                {t.booking.bookingSuccess}
+                {(lang === 'ar' ? 'تم إرسال طلب الحجز!' : lang === 'fr' ? 'Demande envoyée !' : 'Booking request sent!')}
               </h3>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                {t.booking.voucherNotice}
+                {(lang === 'ar' ? 'المضيف سيراجع طلبك ويؤكده. ستجد حالة الطلب في حجوزاتي.' : lang === 'fr' ? 'L’hôte va examiner votre demande. Suivez-la dans Mes réservations.' : 'The host will review your request. Track it in My Bookings.')}
               </p>
             </div>
 
@@ -363,15 +339,12 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
                     {t.booking.bookingRef}
                   </span>
                   <span className="text-lg font-mono font-bold text-emerald-900 tracking-wider">
-                    {confirmedBooking.id}
+                    {confirmedBooking.reference}
                   </span>
                 </div>
                 <div className="text-right rtl:text-left flex flex-col items-end rtl:items-start gap-1">
-                  <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-800 text-white rounded-md">
-                    {t.myBookings.confirmed}
-                  </span>
-                  <span className="text-[10px] font-bold text-emerald-700">
-                    {confirmedBooking.paymentStatus === 'paid' ? t.booking.paymentStatusPaid : t.booking.paymentStatusCash}
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-amber-500 text-white rounded-md">
+                    {(lang === 'ar' ? 'بانتظار موافقة المضيف' : lang === 'fr' ? 'En attente de l’hôte' : 'Awaiting host approval')}
                   </span>
                 </div>
               </div>
@@ -679,34 +652,7 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
               </div>
 
               {/* 4 Interactive Payment Method Cards */}
-              <div className="grid grid-cols-2 gap-2.5">
-                {/* 1. Credit / Debit Cards */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('cards')}
-                  className={`p-3 rounded-xl border text-left rtl:text-right flex flex-col justify-between transition-all ${
-                    paymentMethod === 'cards'
-                      ? 'border-emerald-800 bg-emerald-50/70 ring-1 ring-emerald-800 shadow-xs'
-                      : 'border-stone-200 hover:border-stone-300 bg-white hover:bg-stone-50'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full mb-1">
-                    <span className="text-base font-bold text-stone-800">💳</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-black tracking-tight text-blue-900 bg-blue-50 px-1 py-0.5 rounded">VISA</span>
-                      <span className="text-[10px] font-black tracking-tight text-amber-900 bg-amber-50 px-1 py-0.5 rounded">MC</span>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-stone-900 leading-tight">
-                      {lang === 'ar' ? 'بطاقات مصرفية' : 'Bank Cards'}
-                    </h4>
-                    <p className="text-[10px] text-stone-500 mt-0.5 line-clamp-1">
-                      Visa / Mastercard
-                    </p>
-                  </div>
-                </button>
-
+              <div className="grid grid-cols-3 gap-2.5">
                 {/* 2. Whish Pay */}
                 <button
                   type="button"
@@ -790,217 +736,9 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
                 </button>
               </div>
 
-              {/* Dynamic Payment Details Drawer */}
-              {paymentMethod === 'cards' && (
-                <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between text-xs text-stone-600">
-                    <span className="font-semibold">{t.booking.cardsDesc}</span>
-                    <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-bold">
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>3D Secure</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                      {lang === 'ar' ? 'الاسم على البطاقة' : 'Cardholder Name'}
-                    </label>
-                    <input
-                      type="text"
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value)}
-                      placeholder="e.g. CHARBEL EL HAGE"
-                      className="w-full text-xs p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-emerald-700 uppercase font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                      {lang === 'ar' ? 'رقم البطاقة' : 'Card Number'}
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9]/g, '').replace(/(.{4})/g, '$1 ').trim();
-                          setCardNumber(val);
-                        }}
-                        placeholder="4532 •••• •••• 8841"
-                        className="w-full text-xs p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-emerald-700 font-mono tracking-wider"
-                      />
-                      <CreditCard className="w-4 h-4 text-stone-400 absolute right-3 rtl:right-auto rtl:left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                        {lang === 'ar' ? 'تاريخ الانتهاء' : 'Expiry'} (MM/YY)
-                      </label>
-                      <input
-                        type="text"
-                        maxLength={5}
-                        value={cardExpiry}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^0-9]/g, '');
-                          if (val.length > 2) val = `${val.slice(0, 2)}/${val.slice(2, 4)}`;
-                          setCardExpiry(val);
-                        }}
-                        placeholder="12/28"
-                        className="w-full text-xs p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-emerald-700 font-mono text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-medium text-stone-600 mb-1">
-                        رمز الأمان (CVC)
-                      </label>
-                      <input
-                        type="password"
-                        maxLength={4}
-                        value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value.replace(/[^0-9]/g, ''))}
-                        placeholder="•••"
-                        className="w-full text-xs p-2.5 border border-stone-200 rounded-lg focus:outline-none focus:border-emerald-700 font-mono text-center"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'whish_pay' && (
-                <div className="p-3.5 rounded-xl bg-rose-50/60 border border-rose-200 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-md bg-[#E11D48] text-white flex items-center justify-center font-bold text-xs">W</span>
-                      <span className="text-xs font-bold text-stone-900">Whish Money Direct Checkout</span>
-                    </div>
-                    <span className="text-[11px] font-mono font-bold text-[#E11D48]">
-                      ${totalUSD} USD
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-stone-600 leading-relaxed">
-                    {t.booking.whishInstructions}
-                  </p>
-
-                  <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-rose-200/80">
-                    {whishQr ? (
-                      <img src={whishQr} alt="Whish Pay QR" className="w-24 h-24 rounded-lg shrink-0 border border-rose-200" />
-                    ) : (
-                      <div className="w-24 h-24 bg-rose-100 rounded-lg flex items-center justify-center shrink-0">
-                        <QrCode className="w-8 h-8 text-[#E11D48]" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 text-center sm:text-left rtl:sm:text-right space-y-1">
-                      <span className="text-[10px] text-stone-500 font-semibold block">
-                        {lang === 'ar' ? 'كود الدفع في Whish:' : 'Whish Payment Reference:'}
-                      </span>
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-200 rounded-lg">
-                        <span className="font-mono text-xs font-bold text-[#E11D48]">WHISH-{txnRefCode}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(`WHISH-${txnRefCode}`)}
-                          className="p-1 hover:bg-rose-200 rounded transition-colors text-stone-600"
-                        >
-                          {copiedCode === `WHISH-${txnRefCode}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-stone-400">
-                        {lang === 'ar' ? 'افتح كاميرا الهاتف أو تطبيق Whish لمسح الرمز فوراً' : 'Scan with Whish Money app or enter reference'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-1">
-                      {lang === 'ar' ? 'رقم هاتفك المسجل في Whish (اختياري للتحقق):' : 'Registered Whish Phone Number:'}
-                    </label>
-                    <input
-                      type="tel"
-                      value={whishPhone}
-                      onChange={(e) => setWhishPhone(e.target.value)}
-                      placeholder="+961 70 000 000"
-                      className="w-full text-xs p-2.5 border border-rose-200 rounded-lg focus:outline-none focus:border-[#E11D48] font-mono bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'omt_pay' && (
-                <div className="p-3.5 rounded-xl bg-sky-50/60 border border-sky-200 space-y-3 animate-in fade-in duration-150">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-md bg-[#0284C7] text-white flex items-center justify-center font-bold text-[10px]">OMT</span>
-                      <span className="text-xs font-bold text-stone-900">OMT Pay & 1,400+ Branches</span>
-                    </div>
-                    <span className="text-[11px] font-mono font-bold text-[#0284C7]">
-                      ${totalUSD} USD
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-stone-600 leading-relaxed">
-                    {t.booking.omtInstructions}
-                  </p>
-
-                  <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-sky-200/80">
-                    {omtQr ? (
-                      <img src={omtQr} alt="OMT Pay QR" className="w-24 h-24 rounded-lg shrink-0 border border-sky-200" />
-                    ) : (
-                      <div className="w-24 h-24 bg-sky-100 rounded-lg flex items-center justify-center shrink-0">
-                        <QrCode className="w-8 h-8 text-[#0284C7]" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0 text-center sm:text-left rtl:sm:text-right space-y-1">
-                      <span className="text-[10px] text-stone-500 font-semibold block">
-                        {lang === 'ar' ? 'رمز حجز OMT الرسمي:' : 'OMT Service Voucher Code:'}
-                      </span>
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 border border-sky-200 rounded-lg">
-                        <span className="font-mono text-xs font-bold text-[#0284C7]">OMT-{txnRefCode}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(`OMT-${txnRefCode}`)}
-                          className="p-1 hover:bg-sky-200 rounded transition-colors text-stone-600"
-                        >
-                          {copiedCode === `OMT-${txnRefCode}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-stone-400">
-                        {lang === 'ar' ? 'صالح للدفع في أي فرع OMT أو تطبيق OMT Pay خلال 24 ساعة' : 'Valid at any OMT branch or in OMT Pay app'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-medium text-stone-700 mb-1">
-                      {lang === 'ar' ? 'رقم الهاتف لاستلام إشعار OMT:' : 'Phone number for OMT notification:'}
-                    </label>
-                    <input
-                      type="tel"
-                      value={omtPhone}
-                      onChange={(e) => setOmtPhone(e.target.value)}
-                      placeholder="+961 03 000 000"
-                      className="w-full text-xs p-2.5 border border-sky-200 rounded-lg focus:outline-none focus:border-[#0284C7] font-mono bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {paymentMethod === 'cash_on_arrival' && (
-                <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-2 animate-in fade-in duration-150">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🇱🇧</span>
-                    <span className="text-xs font-bold text-emerald-950">
-                      {lang === 'ar' ? 'دفع نقدي آمن ومباشر للمضيف' : 'Cash upon Check-in'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    {t.booking.cashOnArrivalDesc}. 
-                    {lang === 'ar' ? ' يتم تسليم المبلغ مباشرة للمضيف بالدولار الأمريكي الفريش أو بالليرة اللبنانية حسب سعر الصرف المتفق عليه.' : ' You can settle the full amount directly with the host at check-in.'}
-                  </p>
-                </div>
-              )}
+              <p className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+                {(lang === 'ar' ? 'لن تدفع أي مبلغ الآن. بعد موافقة المضيف على طلبك، تتفق معه على الدفع مباشرة بالطريقة التي اخترتها.' : lang === 'fr' ? 'Aucun paiement maintenant. Une fois la demande acceptée, vous réglez directement l’hôte avec le moyen choisi.' : 'You pay nothing now. Once the host accepts, you pay them directly with the method you picked.')}
+              </p>
             </div>
 
             {/* Price Breakdown */}
@@ -1033,20 +771,20 @@ export const DirectBookingModal: React.FC<DirectBookingModalProps> = ({
             </div>
 
             <p className="text-[11px] text-stone-500 leading-tight">
-              {t.booking.instantConfirmNotice}
+              {(lang === 'ar' ? 'سيصلك إشعار عندما يقبل المضيف طلبك أو يرفضه.' : lang === 'fr' ? 'Vous serez notifié quand l’hôte acceptera ou refusera.' : 'You will be notified when the host accepts or declines.')}
             </p>
 
             {/* Confirm CTA */}
             <button
               type="submit"
-              disabled={isSelectedDateConflict}
+              disabled={isSelectedDateConflict || isSubmitting}
               className={`w-full py-3 px-4 rounded-xl text-white font-bold text-sm shadow-md transition-colors flex items-center justify-center gap-2 ${
                 isSelectedDateConflict
                   ? 'bg-stone-400 cursor-not-allowed opacity-70'
                   : 'bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 cursor-pointer'
               }`}
             >
-              <span>{isSelectedDateConflict ? t.booking.datesConflictNotice : t.booking.confirmBtn}</span>
+              <span>{isSelectedDateConflict ? t.booking.datesConflictNotice : isSubmitting ? (lang === 'ar' ? 'جارٍ الإرسال...' : lang === 'fr' ? 'Envoi...' : 'Sending...') : (lang === 'ar' ? 'أرسل طلب الحجز' : lang === 'fr' ? 'Envoyer la demande' : 'Send booking request')}</span>
               <span>(${totalUSD} USD)</span>
             </button>
           </form>

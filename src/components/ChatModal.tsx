@@ -38,6 +38,7 @@ interface ChatModalProps {
   onSelectListing?: (listingId: string) => void;
   onDirectBook?: (listingId: string) => void;
   allListings?: Listing[];
+  onViewConversation?: (conversationId: string) => void;
 }
 
 export const ChatModal: React.FC<ChatModalProps> = ({
@@ -50,6 +51,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   onSelectListing,
   onDirectBook,
   allListings = [],
+  onViewConversation,
 }) => {
   const [selectedConvId, setSelectedConvId] = useState<string>(
     activeConversationId || conversations[0]?.id || ''
@@ -94,6 +96,12 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeConv?.messages?.length, selectedConvId]);
+
+  useEffect(() => {
+    if (isOpen && selectedConvId && activeConv?.id === selectedConvId && activeConv.unreadCount > 0) {
+      onViewConversation?.(selectedConvId);
+    }
+  }, [isOpen, selectedConvId, activeConv?.unreadCount]);
 
   if (!isOpen) return null;
 

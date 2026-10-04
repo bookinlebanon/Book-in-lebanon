@@ -95,6 +95,7 @@ export interface Listing {
   promotedUntil?: string;
   bookedDates?: string[];
   isUserListing?: boolean;
+  ownerId?: string;
   createdAt: string;
 }
 
@@ -116,8 +117,13 @@ export interface PromotionRecord {
 
 export type PaymentMethod = 'cards' | 'whish_pay' | 'omt_pay' | 'cash_on_arrival';
 
+export type BookingStatus = 'pending' | 'confirmed' | 'declined' | 'cancelled';
+
 export interface Booking {
   id: string;
+  reference: string;
+  guestId?: string;
+  hostId?: string;
   listingId: string;
   listingTitle: string;
   listingImage: string;
@@ -140,7 +146,7 @@ export interface Booking {
   paymentStatus?: 'paid' | 'pending' | 'cash';
   paymentReference?: string;
   notes?: string;
-  status: 'confirmed' | 'cancelled';
+  status: BookingStatus;
   createdAt: string;
 }
 
@@ -179,6 +185,7 @@ export interface AppNotification {
   type: 'booking' | 'inquiry' | 'system' | 'review' | 'promo';
   linkAction?: string;
   listingId?: string;
+  bookingId?: string;
 }
 
 export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'call_log';

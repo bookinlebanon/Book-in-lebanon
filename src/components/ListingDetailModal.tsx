@@ -389,7 +389,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               {/* Bottom Left Rating Badge */}
               <div className="absolute bottom-3 left-3 rtl:left-auto rtl:right-3 px-3 py-1 bg-black/65 backdrop-blur-sm text-white text-xs font-semibold rounded-lg flex items-center gap-1 z-10">
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span>{listing.rating.toFixed(2)}</span>
+                <span>{listing.reviewsCount > 0 ? listing.rating.toFixed(2) : (lang === 'ar' ? 'جديد' : lang === 'fr' ? 'Nouveau' : 'New')}</span>
                 <span className="opacity-80">({listing.reviewsCount} {lang === 'ar' ? 'تقييماً' : lang === 'fr' ? 'avis' : 'reviews'})</span>
               </div>
 

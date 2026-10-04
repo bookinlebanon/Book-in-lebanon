@@ -266,7 +266,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 
             <div className="flex items-center gap-1 text-stone-800 shrink-0 font-semibold tabular-nums">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-              <span>{listing.rating.toFixed(2)}</span>
+              <span>{listing.reviewsCount > 0 ? listing.rating.toFixed(2) : (lang === 'ar' ? 'جديد' : lang === 'fr' ? 'Nouveau' : 'New')}</span>
               <span className="text-stone-400 text-[11px] font-normal">({listing.reviewsCount})</span>
             </div>
           </div>

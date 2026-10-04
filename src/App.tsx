@@ -14,10 +14,11 @@ import {
   ChatConversation,
   ChatMessage,
   PromotionTier,
-  PaymentMethod
+  PaymentMethod,
+  BookingStatus
 } from './types';
-import { initialListings } from './data/initialListings';
-import { initialConversations } from './data/initialConversations';
+import * as api from './lib/api';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { translations, LBP_RATE } from './data/translations';
 import { Header } from './components/Header';
 import { HeroSearch } from './components/HeroSearch';
@@ -44,49 +45,22 @@ import { FeaturedSection } from './components/FeaturedSection';
 import { LebanonMapExplorer } from './components/LebanonMapExplorer';
 import { SlidersHorizontal, RotateCcw, Sparkles, Crown, LayoutGrid, Map, Columns } from 'lucide-react';
 
-const STORAGE_LISTINGS_KEY = 'book_in_lebanon_custom_listings';
-const STORAGE_BOOKINGS_KEY = 'book_in_lebanon_bookings';
 const STORAGE_FAVORITES_KEY = 'book_in_lebanon_favorites';
 const STORAGE_LANG_KEY = 'book_in_lebanon_lang';
 const STORAGE_CURRENCY_KEY = 'book_in_lebanon_currency';
-const STORAGE_USER_KEY = 'book_in_lebanon_user';
-const STORAGE_NOTIFICATIONS_KEY = 'book_in_lebanon_notifications';
-const STORAGE_CONVERSATIONS_KEY = 'book_in_lebanon_conversations';
 
-const DEFAULT_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif-1',
-    title: 'طلب استفسار عبر واتساب 💬',
-    message: 'استفسار جديد من زائر مهتم بشاليه الأرز الفاخر في فاريا مزار لعطلة نهاية الأسبوع.',
-    date: 'منذ 15 دقيقة',
-    read: false,
-    type: 'inquiry',
-  },
-  {
-    id: 'notif-2',
-    title: 'تأكيد حجز مباشر في البترون 🏖️',
-    message: 'تم تسجيل وتأكيد حجز ضيف في بيت ضيافة البترون التراثي القديم (2 ليلة).',
-    date: 'منذ ساعتين',
-    read: false,
-    type: 'booking',
-  },
-  {
-    id: 'notif-3',
-    title: 'شارة مضيف موثق ومعتمد 🛡️',
-    message: 'تهانينا! حسابك مؤهل لشارة الموثوقية الرسمية لزيادة ثقة المستأجرين بنسبة 40%.',
-    date: 'اليوم 10:30 ص',
-    read: false,
-    type: 'system',
-  },
-  {
-    id: 'notif-4',
-    title: 'موسم الشتاء والسياحة في جبال لبنان ❄️',
-    message: 'ارتفاع الطلب على شاليهات التزلج في فاريا وفقرا والأرز. احجز مسبقاً قبل نفاد الأماكن.',
-    date: 'أمس',
-    read: true,
-    type: 'promo',
-  },
-];
+function readStorage<T>(key: string, fallback: T): T {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function errorMessage(e: unknown): string {
+  return (e as { message?: string })?.message || String(e);
+}
 
 export default function App() {
   // Language & Direction
@@ -112,48 +86,28 @@ export default function App() {
     localStorage.setItem(STORAGE_CURRENCY_KEY, currency);
   }, [currency]);
 
-  // Listings State
-  const [listings, setListings] = useState<Listing[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_LISTINGS_KEY);
-      if (stored) {
-        const custom: Listing[] = JSON.parse(stored);
-        return [...custom, ...initialListings].map(l => ({
-          ...l,
-          images: l.images.map(img => img.replace('/src/assets/images/', 'images/'))
-        }));
-      }
-    } catch (e) {
-      console.error('Error loading stored listings', e);
-    }
-    return initialListings;
-  });
+  const tr = (ar: string, fr: string, en: string) => (lang === 'ar' ? ar : lang === 'fr' ? fr : en);
 
-  // Bookings State
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_BOOKINGS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Error loading bookings', e);
-    }
-    return [];
-  });
+  // Server-backed state
+  const [rawListings, setListings] = useState<Listing[]>([]);
+  const [isLoadingListings, setIsLoadingListings] = useState(true);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const listings = useMemo(
+    () => rawListings.map((l) => ({ ...l, isUserListing: !!currentUser && l.ownerId === currentUser.id })),
+    [rawListings, currentUser?.id]
+  );
+  const myListings = useMemo(() => listings.filter((l) => l.isUserListing), [listings]);
+  const [notificationRows, setNotificationRows] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
 
-  // Favorites State
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_FAVORITES_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Error loading favorites', e);
-    }
-    return [];
-  });
+  // Favorites stay on this device
+  const [favorites, setFavorites] = useState<string[]>(() => readStorage(STORAGE_FAVORITES_KEY, []));
+
+  const notifications = useMemo(
+    () => notificationRows.map((row) => api.rowToNotification(row, lang)),
+    [notificationRows, lang]
+  );
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -165,38 +119,6 @@ export default function App() {
     minRating: 0,
     amenities: [],
     sortBy: 'featured',
-  });
-
-  // User Authentication State
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_USER_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.error('Error loading stored user', e);
-    }
-    return {
-      id: 'user-charbel-01',
-      name: 'شربل الحايك',
-      email: 'charbel@lebanonchalets.com',
-      phone: '+961 70 829 110',
-      whatsapp: '96170829110',
-      role: 'host',
-      isVerifiedHost: true,
-      joinedDate: '2025-06-10',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
-    };
-  });
-
-  // Notifications State
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_NOTIFICATIONS_KEY);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.error('Error loading notifications', e);
-    }
-    return DEFAULT_NOTIFICATIONS;
   });
 
   // Modals Visibility
@@ -211,7 +133,6 @@ export default function App() {
   const [selectedListingDetail, setSelectedListingDetail] = useState<Listing | null>(null);
   const [directBookingListing, setDirectBookingListing] = useState<Listing | null>(null);
 
-  // New Modals for requested features
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isBecomeHostOpen, setIsBecomeHostOpen] = useState(false);
@@ -219,27 +140,6 @@ export default function App() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
   const [qrListingTarget, setQrListingTarget] = useState<Listing | null>(null);
-
-  // In-App Chat & Messaging State
-  const [conversations, setConversations] = useState<ChatConversation[]>(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_CONVERSATIONS_KEY);
-      if (stored) {
-        const parsed: ChatConversation[] = JSON.parse(stored);
-        return parsed.map((c) => ({
-          ...c,
-          listingImage: c.listingImage?.replace('/src/assets/images/', 'images/'),
-          messages: c.messages.map((m) => ({
-            ...m,
-            mediaUrl: m.mediaUrl?.replace('/src/assets/images/', 'images/'),
-          })),
-        }));
-      }
-    } catch (e) {
-      console.error('Error loading conversations', e);
-    }
-    return initialConversations;
-  });
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [activeChatConvId, setActiveChatConvId] = useState<string | null>(null);
@@ -251,139 +151,6 @@ export default function App() {
   const [isPromoteOpen, setIsPromoteOpen] = useState(false);
   const [promoteTargetListing, setPromoteTargetListing] = useState<Listing | null>(null);
 
-  const handleOpenPromote = (targetListing?: Listing | null) => {
-    setPromoteTargetListing(targetListing || null);
-    setIsPromoteOpen(true);
-  };
-
-  const handlePromoteSuccess = (
-    listingId: string,
-    tier: PromotionTier,
-    days: number,
-    priceUSD: number,
-    paymentMethod: PaymentMethod,
-    refCode: string
-  ) => {
-    const promotedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
-    setListings(prev => {
-      const updated = prev.map(l => {
-        if (l.id === listingId) {
-          return {
-            ...l,
-            featured: true,
-            promotionTier: tier,
-            promotedUntil,
-          };
-        }
-        return l;
-      });
-      try {
-        localStorage.setItem(STORAGE_LISTINGS_KEY, JSON.stringify(updated.filter(l => l.isUserListing)));
-      } catch (e) {
-        console.error(e);
-      }
-      return updated;
-    });
-
-    if (selectedListingDetail?.id === listingId) {
-      setSelectedListingDetail(prev => prev ? {
-        ...prev,
-        featured: true,
-        promotionTier: tier,
-        promotedUntil,
-      } : null);
-    }
-
-    // Add celebration notification
-    const newNotif: AppNotification = {
-      id: `notif-promote-${Date.now()}`,
-      title: lang === 'ar' ? '⭐ تم ترقية الإعلان بنجاح!' : '⭐ Listing Promoted Successfully!',
-      message: lang === 'ar' 
-        ? `أصبح إعلانك الآن في صدارة الإعلانات المميزة على منصة Book in Lebanon لمدة ${days} يوماً.`
-        : `Your listing is now featured in the top spotlight on Book in Lebanon for ${days} days.`,
-      date: new Date().toISOString().split('T')[0],
-      read: false,
-      type: 'promo',
-      listingId,
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_CONVERSATIONS_KEY, JSON.stringify(conversations));
-  }, [conversations]);
-
-  const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
-
-  const handleSendMessage = (conversationId: string, msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString(lang === 'ar' ? 'ar-LB' : 'en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    const newMsg: ChatMessage = {
-      ...msg,
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      timestamp: timeStr,
-    };
-
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === conversationId) {
-          return {
-            ...c,
-            lastMessageTime: timeStr,
-            messages: [...c.messages, newMsg],
-          };
-        }
-        return c;
-      })
-    );
-  };
-
-  const handleStartChatWithHost = (listing: Listing) => {
-    let conv = conversations.find(
-      (c) => c.listingId === listing.id || (c.hostPhone && c.hostPhone === listing.host.phone)
-    );
-
-    if (!conv) {
-      const newConv: ChatConversation = {
-        id: `conv-${listing.id}-${Date.now()}`,
-        hostName: listing.host.name,
-        hostPhone: listing.host.phone,
-        hostWhatsapp: listing.host.whatsapp,
-        hostVerified: listing.host.verified,
-        listingId: listing.id,
-        listingTitle: listing.title[lang] || listing.title.en,
-        listingImage: listing.images[0] || '',
-        listingPriceUSD: listing.priceUSD,
-        listingCity: listing.city[lang] || listing.city.en,
-        unreadCount: 0,
-        lastMessageTime: 'الآن',
-        messages: [
-          {
-            id: `msg-init-${Date.now()}`,
-            sender: 'host',
-            type: 'text',
-            text: lang === 'ar' 
-              ? `أهلاً بك! أنا ${listing.host.name}، مضيف ${listing.title[lang] || listing.title.en}. يسعدني الإجابة على استفساراتك وتأكيد التواريخ أو ترتيب أي تفاصيل خاصة 🇱🇧`
-              : `Welcome! I am ${listing.host.name}, host of ${listing.title.en}. I'm happy to assist with any questions or bookings!`,
-            timestamp: 'الآن',
-            status: 'delivered',
-          }
-        ]
-      };
-      setConversations((prev) => [newConv, ...prev]);
-      setActiveChatConvId(newConv.id);
-    } else {
-      setActiveChatConvId(conv.id);
-    }
-
-    setIsChatOpen(true);
-    setSelectedListingDetail(null);
-  };
-
   // Toast Feedback State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -392,227 +159,455 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // User auth handlers
-  const handleLogin = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+  const showError = (e: unknown) => {
+    console.error(e);
+    showToast(tr('حدث خطأ: ', 'Erreur : ', 'Something went wrong: ') + errorMessage(e));
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem(STORAGE_USER_KEY);
-    showToast(
-      lang === 'ar' 
-        ? 'تم تسجيل الخروج بنجاح' 
-        : lang === 'fr' 
-        ? 'Déconnexion réussie' 
-        : 'Signed out successfully'
-    );
+  /** Opens sign-in and returns false when nobody is signed in. */
+  const requireAuth = (): boolean => {
+    if (currentUser) return true;
+    setAuthMode('signin');
+    setIsAuthOpen(true);
+    showToast(tr('يرجى تسجيل الدخول أولاً', 'Veuillez vous connecter d’abord', 'Please sign in first'));
+    return false;
   };
 
-  // Notifications handlers
-  const handleMarkAllNotificationsRead = () => {
-    setNotifications((prev) => {
-      const next = prev.map((n) => ({ ...n, read: true }));
-      localStorage.setItem(STORAGE_NOTIFICATIONS_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
+  // ───── Loaders ─────
 
-  const handleClearNotifications = () => {
-    setNotifications([]);
-    localStorage.setItem(STORAGE_NOTIFICATIONS_KEY, JSON.stringify([]));
-    showToast(
-      lang === 'ar' 
-        ? 'تم مسح الإشعارات' 
-        : lang === 'fr' 
-        ? 'Notifications effacées' 
-        : 'Notifications cleared'
-    );
-  };
-
-  const handleNotificationClick = (notif: AppNotification) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
-    );
-    setIsNotificationsOpen(false);
-    if (notif.type === 'booking') {
-      setIsMyBookingsOpen(true);
-    } else if (listings.length > 0) {
-      setSelectedListingDetail(listings[0]);
+  const loadListings = async () => {
+    try {
+      setListings(await api.fetchListings());
+    } catch (e) {
+      showError(e);
+    } finally {
+      setIsLoadingListings(false);
     }
   };
 
-  const handleBroadcastNotification = (title: string, message: string) => {
-    const newNotif: AppNotification = {
-      id: `notif-${Date.now()}`,
-      title,
-      message,
-      date: lang === 'ar' ? 'الآن' : lang === 'fr' ? 'À l’instant' : 'Just now',
-      read: false,
-      type: 'promo',
+  const loadBookings = async () => {
+    try {
+      setBookings(await api.fetchBookings());
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const loadConversations = async (userId: string) => {
+    try {
+      setConversations(await api.fetchConversations(userId, lang));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const loadNotifications = async () => {
+    try {
+      setNotificationRows(await api.fetchNotifications());
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsLoadingListings(false);
+      return;
+    }
+    loadListings();
+  }, []);
+
+  // Track the signed-in user
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const applySession = async (userId: string | null) => {
+      if (!userId) {
+        setCurrentUser(null);
+        return;
+      }
+      try {
+        setCurrentUser(await api.fetchProfile(userId));
+      } catch (e) {
+        showError(e);
+      }
     };
-    setNotifications((prev) => {
-      const next = [newNotif, ...prev];
-      localStorage.setItem(STORAGE_NOTIFICATIONS_KEY, JSON.stringify(next));
-      return next;
+    supabase.auth.getSession().then(({ data }) => applySession(data.session?.user.id ?? null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Defer so Supabase finishes its own auth work before we query.
+      setTimeout(() => applySession(session?.user.id ?? null), 0);
     });
-  };
+    return () => data.subscription.unsubscribe();
+  }, []);
 
-  // Admin handlers
-  const handleToggleFeatured = (listingId: string) => {
-    setListings((prev) =>
-      prev.map((l) => (l.id === listingId ? { ...l, featured: !l.featured } : l))
-    );
-    showToast(
-      lang === 'ar' 
-        ? 'تم تحديث حالة تمييز الإعلان' 
-        : lang === 'fr' 
-        ? 'Statut de mise en avant mis à jour' 
-        : 'Listing featured status updated'
-    );
-  };
+  // Per-user data plus live updates
+  const userId = currentUser?.id;
+  useEffect(() => {
+    if (!userId) {
+      setBookings([]);
+      setConversations([]);
+      setNotificationRows([]);
+      return;
+    }
+    loadBookings();
+    loadConversations(userId);
+    loadNotifications();
 
-  const handleToggleVerifiedHost = (listingId: string) => {
-    setListings((prev) =>
-      prev.map((l) =>
-        l.id === listingId
-          ? { ...l, host: { ...l.host, verified: !l.host.verified } }
-          : l
+    const channel = supabase
+      .channel(`user-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () =>
+        loadConversations(userId)
       )
-    );
-    showToast(
-      lang === 'ar' 
-        ? 'تم تحديث توثيق المضيف' 
-        : lang === 'fr' 
-        ? 'Vérification de l’hôte mise à jour' 
-        : 'Host verification updated'
-    );
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversations' }, () =>
+        loadConversations(userId)
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
+        loadBookings();
+        loadListings();
+      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        () => loadNotifications()
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  // Re-render chat timestamps and listing titles in the new language
+  useEffect(() => {
+    if (userId) loadConversations(userId);
+  }, [lang]);
+
+  // ───── Promotion ─────
+
+  const handleOpenPromote = (targetListing?: Listing | null) => {
+    if (!requireAuth()) return;
+    if (targetListing && targetListing.ownerId !== currentUser?.id) {
+      showToast(tr('يمكن لصاحب الإعلان فقط ترقيته', 'Seul le propriétaire peut booster cette annonce', 'Only the owner can promote this listing'));
+      return;
+    }
+    if (!targetListing && myListings.length === 0) {
+      showToast(tr('انشر إعلاناً أولاً لتتمكن من ترقيته', 'Publiez d’abord une annonce', 'Post a listing first to promote it'));
+      return;
+    }
+    setPromoteTargetListing(targetListing || null);
+    setIsPromoteOpen(true);
   };
 
-  const handleDeleteListing = (listingId: string) => {
-    setListings((prev) => prev.filter((l) => l.id !== listingId));
-    showToast(
-      lang === 'ar' 
-        ? 'تم حذف الإعلان من المنصة' 
-        : lang === 'fr' 
-        ? 'Annonce supprimée' 
-        : 'Listing deleted'
-    );
+  const handlePromoteSuccess = async (
+    listingId: string,
+    tier: PromotionTier,
+    days: number,
+    priceUSD: number,
+    paymentMethod: PaymentMethod,
+    refCode: string
+  ) => {
+    try {
+      await api.requestPromotion({ listingId, tier, days, priceUSD, paymentMethod, paymentReference: refCode });
+      showToast(
+        tr(
+          'تم استلام طلب الترقية. سيتم تفعيل الإعلان المميز بعد تأكيد الدفع من الإدارة.',
+          'Demande reçue. La mise en avant sera activée après vérification du paiement.',
+          'Promotion request received. It goes live once the payment is verified.'
+        )
+      );
+    } catch (e) {
+      showError(e);
+    }
   };
 
-  // Toggle favorite handler
+  // ───── Chat ─────
+
+  const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+
+  const handleSendMessage = async (conversationId: string, msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
+    if (!currentUser) return;
+    // Show the message immediately; the reload replaces it with the stored copy.
+    const optimistic: ChatMessage = {
+      ...msg,
+      id: `pending-${Date.now()}`,
+      timestamp: new Date().toLocaleTimeString(lang === 'ar' ? 'ar-LB' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      status: 'sent',
+    };
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conversationId ? { ...c, messages: [...c.messages, optimistic] } : c))
+    );
+    try {
+      await api.sendMessage(currentUser.id, conversationId, msg);
+    } catch (e) {
+      showError(e);
+    }
+    loadConversations(currentUser.id);
+  };
+
+  const handleViewConversation = async (conversationId: string) => {
+    if (!currentUser) return;
+    await api.markConversationRead(conversationId);
+    loadConversations(currentUser.id);
+  };
+
+  const handleOpenChat = () => {
+    if (!requireAuth()) return;
+    setIsChatOpen(true);
+  };
+
+  const handleStartChatWithHost = async (listing: Listing) => {
+    if (!requireAuth() || !currentUser) return;
+    if (listing.ownerId === currentUser.id) {
+      showToast(tr('هذا إعلانك', 'C’est votre annonce', 'This is your own listing'));
+      return;
+    }
+    try {
+      const convId = await api.startConversation(currentUser.id, listing.id);
+      await loadConversations(currentUser.id);
+      setActiveChatConvId(convId);
+      setIsChatOpen(true);
+      setSelectedListingDetail(null);
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  // ───── Auth ─────
+
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = async () => {
+    await api.signOut();
+    setCurrentUser(null);
+    showToast(tr('تم تسجيل الخروج بنجاح', 'Déconnexion réussie', 'Signed out successfully'));
+  };
+
+  // ───── Notifications ─────
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!currentUser) return;
+    setNotificationRows((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await api.markNotificationsRead(currentUser.id);
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    if (!currentUser) return;
+    setNotificationRows([]);
+    try {
+      await api.clearNotifications(currentUser.id);
+      showToast(tr('تم مسح الإشعارات', 'Notifications effacées', 'Notifications cleared'));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const handleNotificationClick = (notif: AppNotification) => {
+    setNotificationRows((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
+    if (currentUser) api.markNotificationsRead(currentUser.id, [notif.id]).catch(console.error);
+    setIsNotificationsOpen(false);
+    if (notif.bookingId) {
+      setIsMyBookingsOpen(true);
+    } else if (notif.listingId) {
+      const found = listings.find((l) => l.id === notif.listingId);
+      if (found) setSelectedListingDetail(found);
+    }
+  };
+
+  const handleOpenNotifications = () => {
+    if (!requireAuth()) return;
+    setIsNotificationsOpen(true);
+  };
+
+  const handleBroadcastNotification = async (title: string, message: string) => {
+    try {
+      await api.broadcastNotification(title, message);
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  // ───── Admin ─────
+
+  const handleOpenAdmin = () => {
+    if (currentUser?.role !== 'admin') {
+      showToast(tr('لوحة التحكم للمشرفين فقط', 'Réservé aux administrateurs', 'Admins only'));
+      return;
+    }
+    setIsAdminOpen(true);
+  };
+
+  const handleToggleFeatured = async (listingId: string) => {
+    const target = listings.find((l) => l.id === listingId);
+    if (!target) return;
+    try {
+      await api.setListingFeatured(listingId, !target.featured);
+      setListings((prev) => prev.map((l) => (l.id === listingId ? { ...l, featured: !l.featured } : l)));
+      showToast(tr('تم تحديث حالة تمييز الإعلان', 'Statut de mise en avant mis à jour', 'Listing featured status updated'));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const handleToggleVerifiedHost = async (listingId: string) => {
+    const target = listings.find((l) => l.id === listingId);
+    if (!target?.ownerId) return;
+    try {
+      await api.setHostVerified(target.ownerId, !target.host.verified);
+      await loadListings();
+      showToast(tr('تم تحديث توثيق المضيف', 'Vérification de l’hôte mise à jour', 'Host verification updated'));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  const handleDeleteListing = async (listingId: string) => {
+    try {
+      await api.deleteListing(listingId);
+      setListings((prev) => prev.filter((l) => l.id !== listingId));
+      showToast(tr('تم حذف الإعلان من المنصة', 'Annonce supprimée', 'Listing deleted'));
+    } catch (e) {
+      showError(e);
+    }
+  };
+
+  // ───── Favorites ─────
+
   const handleToggleFavorite = (id: string) => {
     setFavorites((prev) => {
       const exists = prev.includes(id);
       const next = exists ? prev.filter((item) => item !== id) : [...prev, id];
-      localStorage.setItem(STORAGE_FAVORITES_KEY, JSON.stringify(next));
+      try {
+        localStorage.setItem(STORAGE_FAVORITES_KEY, JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
       showToast(
         exists
-          ? lang === 'ar'
-            ? 'تمت الإزالة من المفضلة'
-            : lang === 'fr'
-            ? 'Retiré des favoris'
-            : 'Removed from favorites'
-          : lang === 'ar'
-          ? 'تمت الإضافة إلى المفضلة ❤️'
-          : lang === 'fr'
-          ? 'Ajouté aux favoris ❤️'
-          : 'Added to favorites ❤️'
+          ? tr('تمت الإزالة من المفضلة', 'Retiré des favoris', 'Removed from favorites')
+          : tr('تمت الإضافة إلى المفضلة ❤️', 'Ajouté aux favoris ❤️', 'Added to favorites ❤️')
       );
       return next;
     });
   };
 
-  // Confirm booking handler
-  const handleConfirmBooking = (newBooking: Booking) => {
-    setBookings((prev) => {
-      const next = [newBooking, ...prev];
-      localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(next));
-      return next;
-    });
-    showToast(
-      lang === 'ar'
-        ? `تم تأكيد حجزك بنجاح! رقم الحجز: ${newBooking.id}`
-        : lang === 'fr'
-        ? `Réservation confirmée ! Réf: ${newBooking.id}`
-        : `Booking confirmed! Reference: ${newBooking.id}`
-    );
+  // ───── Bookings ─────
+
+  const handleOpenBooking = (listing: Listing) => {
+    if (!requireAuth()) return;
+    if (listing.ownerId === currentUser?.id) {
+      showToast(tr('لا يمكنك حجز إعلانك', 'Vous ne pouvez pas réserver votre annonce', 'You cannot book your own listing'));
+      return;
+    }
+    setDirectBookingListing(listing);
   };
 
-  // Cancel booking handler
-  const handleCancelBooking = (bookingId: string) => {
-    setBookings((prev) => {
-      const next = prev.map((b) =>
-        b.id === bookingId ? { ...b, status: 'cancelled' as const } : b
+  const handleConfirmBooking = async (newBooking: Booking): Promise<Booking | null> => {
+    try {
+      const saved = await api.createBooking(newBooking);
+      setBookings((prev) => [saved, ...prev]);
+      showToast(
+        tr(
+          `تم إرسال طلب الحجز للمضيف. رقم الطلب: ${saved.reference}`,
+          `Demande envoyée à l’hôte. Réf : ${saved.reference}`,
+          `Request sent to the host. Reference: ${saved.reference}`
+        )
       );
-      localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(next));
-      return next;
-    });
-    showToast(
-      lang === 'ar' 
-        ? 'تم إلغاء الحجز' 
-        : lang === 'fr' 
-        ? 'Réservation annulée' 
-        : 'Booking cancelled'
-    );
+      return saved;
+    } catch (e) {
+      showError(e);
+      return null;
+    }
   };
 
-  // Add listing handler
-  const handleAddListing = (newListing: Listing) => {
-    setListings((prev) => {
-      const next = [newListing, ...prev];
-      // Store only custom ones in storage
-      const userListings = next.filter((l) => l.isUserListing);
-      localStorage.setItem(STORAGE_LISTINGS_KEY, JSON.stringify(userListings));
-      return next;
-    });
-    showToast(
-      lang === 'ar'
-        ? 'تم نشر إعلانك الجديد بنجاح على Book in Lebanon! 🇱🇧'
-        : lang === 'fr'
-        ? 'Votre annonce est publiée avec succès sur Book in Lebanon ! 🇱🇧'
-        : 'Your listing is live on Book in Lebanon! 🇱🇧'
-    );
+  const handleUpdateBookingStatus = async (bookingId: string, status: BookingStatus) => {
+    try {
+      const updated = await api.setBookingStatus(bookingId, status);
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? updated : b)));
+      if (status === 'confirmed') loadListings();
+      showToast(
+        status === 'confirmed'
+          ? tr('تم تأكيد الحجز ✅', 'Réservation confirmée ✅', 'Booking confirmed ✅')
+          : status === 'declined'
+          ? tr('تم رفض الطلب', 'Demande refusée', 'Request declined')
+          : tr('تم إلغاء الحجز', 'Réservation annulée', 'Booking cancelled')
+      );
+    } catch (e) {
+      if (api.isDoubleBookingError(e)) {
+        showToast(
+          tr(
+            'لا يمكن التأكيد: هذه التواريخ محجوزة بحجز مؤكد آخر.',
+            'Impossible : ces dates sont déjà réservées.',
+            'Cannot confirm: these dates overlap another confirmed booking.'
+          )
+        );
+      } else {
+        showError(e);
+      }
+    }
   };
 
-  // Add review handler
-  const handleAddReview = (listingId: string, reviewData: Omit<Review, 'id' | 'date'>) => {
-    const newRev: Review = {
-      id: `rev-${Date.now()}`,
-      author: reviewData.author,
-      rating: reviewData.rating,
-      comment: reviewData.comment,
-      date: new Date().toISOString().split('T')[0],
-    };
+  const handleCancelBooking = (bookingId: string) => handleUpdateBookingStatus(bookingId, 'cancelled');
 
-    setListings((prev) =>
-      prev.map((l) => {
-        if (l.id === listingId) {
+  // ───── Listings ─────
+
+  const handleOpenPostAd = () => {
+    if (!requireAuth()) return;
+    setIsPostAdOpen(true);
+  };
+
+  const handleAddListing = async (newListing: Listing): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const saved = await api.createListing(currentUser.id, newListing);
+      setListings((prev) => [saved, ...prev]);
+      if (currentUser.role === 'guest') {
+        await api.becomeHost(currentUser.id);
+        setCurrentUser({ ...currentUser, role: 'host' });
+      }
+      showToast(
+        tr(
+          'تم نشر إعلانك الجديد بنجاح على Book in Lebanon! 🇱🇧',
+          'Votre annonce est publiée avec succès sur Book in Lebanon ! 🇱🇧',
+          'Your listing is live on Book in Lebanon! 🇱🇧'
+        )
+      );
+      return true;
+    } catch (e) {
+      showError(e);
+      return false;
+    }
+  };
+
+  const handleAddReview = async (listingId: string, reviewData: Omit<Review, 'id' | 'date'>) => {
+    if (!requireAuth()) return;
+    try {
+      const newRev = await api.addReview(listingId, reviewData);
+      setListings((prev) =>
+        prev.map((l) => {
+          if (l.id !== listingId) return l;
           const updatedReviews = [newRev, ...l.reviews];
-          const newAvg =
-            updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
+          const newAvg = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length;
           const updated = {
             ...l,
             reviews: updatedReviews,
             reviewsCount: updatedReviews.length,
             rating: Number(newAvg.toFixed(2)),
           };
-          if (selectedListingDetail?.id === listingId) {
-            setSelectedListingDetail(updated);
-          }
+          if (selectedListingDetail?.id === listingId) setSelectedListingDetail(updated);
           return updated;
-        }
-        return l;
-      })
-    );
-    showToast(
-      lang === 'ar' 
-        ? 'تمت إضافة تقييمك بنجاح' 
-        : lang === 'fr' 
-        ? 'Avis publié avec succès' 
-        : 'Review published'
-    );
+        })
+      );
+      showToast(tr('تمت إضافة تقييمك بنجاح', 'Avis publié avec succès', 'Review published'));
+    } catch (e) {
+      showError(e);
+    }
   };
 
   // Reset filters
@@ -732,6 +727,12 @@ export default function App() {
         </div>
       )}
 
+      {!isSupabaseConfigured && (
+        <div className="bg-amber-100 text-amber-900 text-xs font-semibold text-center px-4 py-2 border-b border-amber-200">
+          {tr('الموقع غير متصل بقاعدة البيانات بعد.', 'Le site n’est pas encore connecté à la base de données.', 'The site is not connected to the database yet.')}
+        </div>
+      )}
+
       {/* Top Bar Navigation */}
       <Header
         lang={lang}
@@ -740,14 +741,14 @@ export default function App() {
         setCurrency={setCurrency}
         selectedCategory={filters.category}
         onSelectCategory={(cat) => setFilters((prev) => ({ ...prev, category: cat }))}
-        onOpenPostAd={() => setIsPostAdOpen(true)}
+        onOpenPostAd={handleOpenPostAd}
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         onOpenFavorites={() => setIsFavoritesOpen(true)}
         onOpenQrScanner={() => setIsQrScannerOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
+        onOpenChat={handleOpenChat}
         onOpenPromote={() => handleOpenPromote()}
         unreadMessagesCount={totalUnreadMessages}
-        bookingsCount={bookings.filter((b) => b.status === 'confirmed').length}
+        bookingsCount={bookings.filter((b) => b.guestId === currentUser?.id && (b.status === 'confirmed' || b.status === 'pending')).length}
         favoritesCount={favorites.length}
         currentUser={currentUser}
         onOpenAuth={(mode) => {
@@ -756,8 +757,8 @@ export default function App() {
         }}
         onLogout={handleLogout}
         onOpenBecomeHost={() => setIsBecomeHostOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
+        onOpenNotifications={handleOpenNotifications}
         unreadNotificationsCount={notifications.filter((n) => !n.read).length}
       />
 
@@ -882,7 +883,24 @@ export default function App() {
         </div>
 
         {/* Listings Display: Map View, Split View, or Grid View */}
-        {filteredListings.length === 0 ? (
+        {isLoadingListings ? (
+          <div className="text-center py-16 text-sm font-semibold text-stone-500">
+            {tr('جارٍ تحميل الإعلانات...', 'Chargement des annonces...', 'Loading listings...')}
+          </div>
+        ) : listings.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl border border-stone-200/80 p-8 space-y-4">
+            <span className="text-5xl">🇱🇧</span>
+            <h3 className="text-base font-bold text-stone-800">
+              {tr('لا توجد إعلانات بعد. كن أول من ينشر إعلانه!', 'Aucune annonce pour l’instant. Publiez la première !', 'No listings yet. Be the first to post one!')}
+            </h3>
+            <button
+              onClick={handleOpenPostAd}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-700 rounded-xl transition-colors shadow-xs cursor-pointer"
+            >
+              {tr('أضف إعلانك', 'Publier une annonce', 'Post a listing')}
+            </button>
+          </div>
+        ) : filteredListings.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-stone-200/80 p-8 space-y-4">
             <span className="text-5xl">🇱🇧</span>
             <h3 className="text-base font-bold text-stone-800">{t.filter.noResults}</h3>
@@ -901,7 +919,7 @@ export default function App() {
               listings={filteredListings}
               selectedListing={selectedListingDetail}
               onSelectListing={(l) => setSelectedListingDetail(l)}
-              onDirectBook={(l) => setDirectBookingListing(l)}
+              onDirectBook={handleOpenBooking}
               lang={lang}
               currency={currency}
               activeRegion={filters.region}
@@ -922,7 +940,7 @@ export default function App() {
                   isFavorite={favorites.includes(listing.id)}
                   onToggleFavorite={handleToggleFavorite}
                   onSelectListing={(l) => setSelectedListingDetail(l)}
-                  onDirectBook={(l) => setDirectBookingListing(l)}
+                  onDirectBook={handleOpenBooking}
                   onShareListing={(l) => {
                     setShareListing(l);
                     setIsShareModalOpen(true);
@@ -937,7 +955,7 @@ export default function App() {
                 listings={filteredListings}
                 selectedListing={selectedListingDetail}
                 onSelectListing={(l) => setSelectedListingDetail(l)}
-                onDirectBook={(l) => setDirectBookingListing(l)}
+                onDirectBook={handleOpenBooking}
                 lang={lang}
                 currency={currency}
                 activeRegion={filters.region}
@@ -959,7 +977,7 @@ export default function App() {
                 isFavorite={favorites.includes(listing.id)}
                 onToggleFavorite={handleToggleFavorite}
                 onSelectListing={(l) => setSelectedListingDetail(l)}
-                onDirectBook={(l) => setDirectBookingListing(l)}
+                onDirectBook={handleOpenBooking}
                 onShareListing={(l) => {
                   setShareListing(l);
                   setIsShareModalOpen(true);
@@ -1016,7 +1034,7 @@ export default function App() {
         onToggleFavorite={handleToggleFavorite}
         onDirectBook={(l) => {
           setSelectedListingDetail(null);
-          setDirectBookingListing(l);
+          handleOpenBooking(l);
         }}
         onAddReview={handleAddReview}
         onShareListing={(l) => {
@@ -1036,6 +1054,7 @@ export default function App() {
         lang={lang}
         onConfirmBooking={handleConfirmBooking}
         existingBookings={bookings}
+        currentUser={currentUser}
       />
 
       {/* Post an Ad Modal (وضع إعلان) */}
@@ -1044,6 +1063,7 @@ export default function App() {
         onClose={() => setIsPostAdOpen(false)}
         lang={lang}
         onAddListing={handleAddListing}
+        currentUser={currentUser}
       />
 
       {/* My Bookings Modal (حجوزاتي) */}
@@ -1052,6 +1072,8 @@ export default function App() {
         onClose={() => setIsMyBookingsOpen(false)}
         bookings={bookings}
         onCancelBooking={handleCancelBooking}
+        onUpdateStatus={handleUpdateBookingStatus}
+        currentUser={currentUser}
         lang={lang}
         currency={currency}
       />
@@ -1065,7 +1087,7 @@ export default function App() {
         currency={currency}
         onToggleFavorite={handleToggleFavorite}
         onSelectListing={(l) => setSelectedListingDetail(l)}
-        onDirectBook={(l) => setDirectBookingListing(l)}
+        onDirectBook={handleOpenBooking}
         onShareListing={(l) => {
           setShareListing(l);
           setIsShareModalOpen(true);
@@ -1098,7 +1120,7 @@ export default function App() {
         onClose={() => setIsBecomeHostOpen(false)}
         lang={lang}
         currency={currency}
-        onOpenPostAd={() => setIsPostAdOpen(true)}
+        onOpenPostAd={handleOpenPostAd}
       />
 
       {/* Notifications Modal (مركز الإشعارات والتنبيهات) */}
@@ -1132,7 +1154,7 @@ export default function App() {
       <Footer
         lang={lang}
         onSelectCategory={(cat) => setFilters((prev) => ({ ...prev, category: cat }))}
-        onOpenPostAd={() => setIsPostAdOpen(true)}
+        onOpenPostAd={handleOpenPostAd}
       />
 
       {/* Mobile Bottom Navigation Bar (Natural Thumb Reach) */}
@@ -1142,14 +1164,14 @@ export default function App() {
         setActiveTab={setMobileActiveTab}
         viewMode={viewMode}
         onToggleViewMode={setViewMode}
-        onOpenPostAd={() => setIsPostAdOpen(true)}
+        onOpenPostAd={handleOpenPostAd}
         onOpenMyBookings={() => setIsMyBookingsOpen(true)}
         onOpenFavorites={() => setIsFavoritesOpen(true)}
         onOpenSettings={() => setIsMobileSettingsOpen(true)}
         onOpenQrScanner={() => setIsQrScannerOpen(true)}
-        onOpenChat={() => setIsChatOpen(true)}
+        onOpenChat={handleOpenChat}
         unreadMessagesCount={totalUnreadMessages}
-        bookingsCount={bookings.filter((b) => b.status === 'confirmed').length}
+        bookingsCount={bookings.filter((b) => b.guestId === currentUser?.id && (b.status === 'confirmed' || b.status === 'pending')).length}
         favoritesCount={favorites.length}
         onSelectCategory={(cat) => setFilters((prev) => ({ ...prev, category: cat }))}
       />
@@ -1200,10 +1222,11 @@ export default function App() {
           const found = listings.find((l) => l.id === listingId);
           if (found) {
             setIsChatOpen(false);
-            setDirectBookingListing(found);
+            handleOpenBooking(found);
           }
         }}
         allListings={listings}
+        onViewConversation={handleViewConversation}
       />
 
       {/* Mobile Settings Sheet (Language & Currency switcher & Account) */}
@@ -1221,8 +1244,8 @@ export default function App() {
         }}
         onLogout={handleLogout}
         onOpenBecomeHost={() => setIsBecomeHostOpen(true)}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenAdmin={handleOpenAdmin}
+        onOpenNotifications={handleOpenNotifications}
         onOpenPromote={() => handleOpenPromote()}
         unreadNotificationsCount={notifications.filter((n) => !n.read).length}
       />
@@ -1232,7 +1255,7 @@ export default function App() {
         isOpen={isPromoteOpen}
         onClose={() => setIsPromoteOpen(false)}
         listing={promoteTargetListing}
-        allListings={listings}
+        allListings={myListings}
         onPromoteSuccess={handlePromoteSuccess}
         lang={lang}
       />

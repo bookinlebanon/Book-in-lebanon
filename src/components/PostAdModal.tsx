@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { Category, Region, Amenity, Language, Listing, PriceUnit } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { Category, Region, Amenity, Language, Listing, PriceUnit, User } from '../types';
 import { translations } from '../data/translations';
 import { 
   X, 
@@ -25,7 +25,8 @@ interface PostAdModalProps {
   isOpen: boolean;
   onClose: () => void;
   lang: Language;
-  onAddListing: (newListing: Listing) => void;
+  onAddListing: (newListing: Listing) => Promise<boolean>;
+  currentUser?: User | null;
 }
 
 interface UploadedMediaItem {
@@ -40,6 +41,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   onClose,
   lang,
   onAddListing,
+  currentUser,
 }) => {
   const t = translations[lang];
 
@@ -65,9 +67,18 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const [hostName, setHostName] = useState('');
   const [hostPhone, setHostPhone] = useState('+961 ');
   const [hostWhatsapp, setHostWhatsapp] = useState('961');
-  const [selectedImage, setSelectedImage] = useState('images/lebanon_mountain_chalet_1790760821579.jpg');
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Prefill contact details from the signed-in account
+  useEffect(() => {
+    if (!isOpen || !currentUser) return;
+    setHostName((prev) => prev || currentUser.name);
+    setHostPhone((prev) => (prev.trim() && prev.trim() !== '+961' ? prev : currentUser.phone || prev));
+    setHostWhatsapp((prev) => (prev && prev !== '961' ? prev : currentUser.whatsapp || prev));
+  }, [isOpen, currentUser]);
 
   // Phone & Computer Media Upload State
   const [uploadedImages, setUploadedImages] = useState<UploadedMediaItem[]>([]);
@@ -80,32 +91,6 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
   if (!isOpen) return null;
 
-  const presetImages = [
-    {
-      url: 'images/lebanon_mountain_chalet_1790760821579.jpg',
-      label: lang === 'ar' ? 'شاليه جبلي فاخر' : lang === 'fr' ? 'Chalet de montagne' : 'Mountain Chalet',
-    },
-    {
-      url: 'images/lebanon_cedars_cabin_1790761973183.jpg',
-      label: lang === 'ar' ? 'كوخ أرز الرب' : lang === 'fr' ? 'Cabane des Cèdres' : 'Cedars Alpine Cabin',
-    },
-    {
-      url: 'images/lebanon_coastal_guesthouse_1790760833819.jpg',
-      label: lang === 'ar' ? 'بيت ضيافة بحري' : lang === 'fr' ? 'Maison d’hôtes côtière' : 'Coastal Guest House',
-    },
-    {
-      url: 'images/lebanon_jezzine_pine_villa_1790761985220.jpg',
-      label: lang === 'ar' ? 'فيلا صنوبر جزين' : lang === 'fr' ? 'Villa aux pins' : 'Jezzine Pine Villa',
-    },
-    {
-      url: 'images/lebanon_beirut_modern_studio_1790760845048.jpg',
-      label: lang === 'ar' ? 'استوديو بيروت' : lang === 'fr' ? 'Studio moderne' : 'Modern Beirut Studio',
-    },
-    {
-      url: 'images/lebanon_terrace_restaurant_1790760857859.jpg',
-      label: lang === 'ar' ? 'مطعم وتراس' : lang === 'fr' ? 'Restaurant terrasse' : 'Terrace Restaurant',
-    },
-  ];
 
   const amenityList: { key: Amenity; label: string }[] = [
     { key: 'generator_247', label: t.amenities.generator_247 },
@@ -210,15 +195,20 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
     setUploadedVideos(prev => prev.filter(v => v.id !== id));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!titleAr.trim()) return;
+    if (!titleAr.trim() || isSubmitting) return;
 
     const finalImages = uploadedImages.length > 0
       ? uploadedImages.map(img => img.url)
       : customImageUrl.trim()
       ? [customImageUrl.trim()]
-      : [selectedImage];
+      : [];
+    if (finalImages.length === 0) {
+      setSubmitError(lang === 'ar' ? 'أضف صورة واحدة على الأقل للمكان' : lang === 'fr' ? 'Ajoutez au moins une photo' : 'Add at least one photo');
+      return;
+    }
+    setSubmitError(null);
 
     const finalVideos = uploadedVideos.length > 0
       ? uploadedVideos.map(v => v.url)
@@ -244,8 +234,8 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       address: address.trim() || finalCity,
       priceUSD: Number(priceUSD),
       priceUnit,
-      rating: 5.0,
-      reviewsCount: 1,
+      rating: 0,
+      reviewsCount: 0,
       images: finalImages,
       videos: finalVideos,
       description: {
@@ -262,23 +252,18 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         name: hostName.trim() || (lang === 'ar' ? 'المضيف' : 'Host'),
         phone: hostPhone.trim(),
         whatsapp: hostWhatsapp.replace(/[^0-9]/g, '') || '96170000000',
-        verified: true,
+        verified: false,
       },
-      reviews: [
-        {
-          id: `rev-initial-${Date.now()}`,
-          author: 'Book in Lebanon Quality Team',
-          date: new Date().toISOString().split('T')[0],
-          rating: 5,
-          comment: lang === 'ar' ? 'إعلان جديد موثق على المنصة.' : 'New verified listing published on Book in Lebanon.',
-        }
-      ],
-      featured: true,
+      reviews: [],
+      featured: false,
       isUserListing: true,
       createdAt: new Date().toISOString(),
     };
 
-    onAddListing(newListing);
+    setIsSubmitting(true);
+    const ok = await onAddListing(newListing);
+    setIsSubmitting(false);
+    if (!ok) return;
     setIsSuccess(true);
     setTimeout(() => {
       setIsSuccess(false);
@@ -860,30 +845,8 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
               {uploadedImages.length === 0 && (
                 <div className="pt-2 border-t border-stone-200">
                   <label className="block text-[11px] font-semibold text-stone-600 mb-1.5">
-                    {t.postAd.imagePresetTitle}
+                    {lang === 'ar' ? 'لا صور؟ ضع رابط صورة للمكان' : lang === 'fr' ? 'Pas de photo ? Collez un lien d’image' : 'No photos? Paste an image link'}
                   </label>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
-                    {presetImages.map(img => (
-                      <div
-                        key={img.url}
-                        onClick={() => {
-                          setSelectedImage(img.url);
-                          setCustomImageUrl('');
-                        }}
-                        className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all aspect-[16/10] ${
-                          selectedImage === img.url && !customImageUrl
-                            ? 'border-emerald-800 ring-2 ring-emerald-800'
-                            : 'border-stone-200 opacity-80 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={img.url} alt={img.label} className="w-full h-full object-cover" />
-                        <span className="absolute bottom-1 inset-x-1 text-[10px] font-bold bg-black/60 text-white px-1 py-0.5 rounded text-center truncate">
-                          {img.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
 
                   <input
                     type="url"
@@ -898,11 +861,17 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
             {/* Submit CTA */}
             <div className="pt-3 border-t border-stone-200">
+              {submitError && (
+                <p className="mb-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-xl p-2.5">{submitError}</p>
+              )}
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-white font-bold text-sm shadow-md transition-colors"
+                disabled={isSubmitting || isProcessingMedia}
+                className="w-full py-3 px-4 rounded-xl disabled:opacity-60 bg-emerald-800 hover:bg-emerald-700 active:bg-emerald-900 text-white font-bold text-sm shadow-md transition-colors"
               >
-                {t.postAd.submitBtn}
+                {isSubmitting
+                  ? (lang === 'ar' ? 'جارٍ رفع الصور ونشر الإعلان...' : lang === 'fr' ? 'Publication en cours...' : 'Uploading & publishing...')
+                  : t.postAd.submitBtn}
               </button>
             </div>
           </form>
