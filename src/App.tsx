@@ -45,6 +45,7 @@ import { FeaturedSection } from './components/FeaturedSection';
 import { LebanonMapExplorer } from './components/LebanonMapExplorer';
 import { InstallAppBanner } from './components/InstallAppBanner';
 import { ShareAppModal } from './components/ShareAppModal';
+import { PullToRefresh } from './components/PullToRefresh';
 import { playNotificationSound, unlockSoundOnFirstInteraction } from './utils/notificationSound';
 import { SlidersHorizontal, RotateCcw, Sparkles, Crown, LayoutGrid, Map, Columns } from 'lucide-react';
 
@@ -224,6 +225,14 @@ export default function App() {
   useEffect(() => {
     unlockSoundOnFirstInteraction();
   }, []);
+
+  const handlePullRefresh = () =>
+    Promise.all([
+      loadListings(),
+      ...(currentUser
+        ? [loadBookings(), loadConversations(currentUser.id), loadNotifications()]
+        : []),
+    ]);
 
   // Track the signed-in user
   useEffect(() => {
@@ -748,6 +757,8 @@ export default function App() {
           {tr('الموقع غير متصل بقاعدة البيانات بعد.', 'Le site n’est pas encore connecté à la base de données.', 'The site is not connected to the database yet.')}
         </div>
       )}
+
+      <PullToRefresh onRefresh={handlePullRefresh} />
 
       <InstallAppBanner lang={lang} />
 
