@@ -3,6 +3,9 @@ import { User, UserRole, Language } from '../types';
 import { signIn, signUp, signInWithGoogle } from '../lib/api';
 import { X, User as UserIcon, Lock, Mail, Phone, ShieldCheck, Sparkles, Check, ArrowRight, ArrowLeft } from 'lucide-react';
 
+// Hidden until the Google provider is configured in Google Cloud and Supabase.
+const GOOGLE_SIGN_IN_ENABLED = false;
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -159,6 +162,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Scrollable Form Body */}
         <div className="overflow-y-auto p-4 sm:p-5 space-y-4 flex-1">
           {/* Form */}
+          {GOOGLE_SIGN_IN_ENABLED && (
+          <>
           <button
             type="button"
             onClick={handleGoogle}
@@ -179,6 +184,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <span className="text-[11px] font-semibold text-stone-400">{tr('أو بالبريد الإلكتروني', 'ou par e-mail', 'or with email')}</span>
             <span className="flex-1 h-px bg-stone-200" />
           </div>
+          </>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {mode === 'signup' && (
