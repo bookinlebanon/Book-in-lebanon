@@ -17,11 +17,22 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Book in Lebanon" />
+    <script>
+      // Apply the saved theme before first paint so dark mode doesn't flash white.
+      (function () {
+        try {
+          var m = localStorage.getItem('book_in_lebanon_theme') || 'system';
+          if (m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="./assets/index-CrzkOvr_.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CF5s5__u.css">
+    <script type="module" crossorigin src="./assets/index-DX0Yj7OB.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-qIYe0txE.css">
   </head>
   <body class="bg-[#FBFBF9] text-[#1E293B] antialiased selection:bg-emerald-700 selection:text-white">
     <div id="root"></div>
